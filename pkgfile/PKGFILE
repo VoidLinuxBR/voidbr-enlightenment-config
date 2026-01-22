@@ -33,7 +33,7 @@
 ##############################################################################
 # Maintainer: Vilmar Catafesta <vcatafesta@gmail.com>
 
-pkgname=voidbr-enlightenment-config"
+pkgname=voidbr-enlightenment-config
 pkgdesc="Skel config for Void Linux ENLIGHTENMENT Meta Package"
 pkgver=$(date +%Y%m%d)
 pkgrel=$(date +%H%M)
