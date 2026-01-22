@@ -1,3 +1,3 @@
-# voidbr-pkgfile-template
+# voidbr-enlighttenment-config
 
-Template for VoidBR pkgmake/pkgfile packages
+Skel config for Void Linux ENLIGHTENMENT Meta Package
