@@ -12,19 +12,22 @@ source=("git+${url}.git")
 md5sums=('SKIP')
 makedepends=()
 depends=()
+backup=()
 
 package() {
-  cd "${srcdir}/${pkgname}"
-
   # Verify default folder
   if [ -d "${srcdir}/${pkgname}/${pkgname}" ]; then
     InternalDir="${srcdir}/${pkgname}/${pkgname}"
-  else
+  elif [ -d "${srcdir}/${pkgname}" ]; then
     InternalDir="${srcdir}/${pkgname}"
+  else
+    #local
+    InternalDir="${WORKDIR}"
   fi
 
+  cd "${InternalDir}"
   # Copiar a estrutura de /etc, /usr e /opt para /
-  local dirs=("usr" "etc" "opt" "var")
+  local dirs=("boot" "etc" "opt" "usr" "var")
   for dir in "${dirs[@]}"; do
     if [ -d "${InternalDir}/${dir}" ]; then
       cp -a "${InternalDir}/${dir}" "${pkgdir}/"
@@ -35,23 +38,26 @@ package() {
   [ -f "LICENSE" ] && install -Dm644 LICENSE "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE"
   # Install documentation if present
   [ -f "README.md" ] && install -Dm644 README.md "${pkgdir}/usr/share/doc/${pkgname}/README.md"
+
 }
 
 pre_install() {
-  log "Iniciando instalação"
+	log "Iniciando instalação"
 }
 
 post_install() {
-  log "Finalizando instalação"
+  if [ "${update:-}" = "yes" ]; then
+    log "Finalizando upgrade"
+  else
+    log "Finalizando instalação"
+  fi
+
 }
 
 pre_upgrade() {
-  log "Iniciando upgrade"
+	log "Iniciando upgrade"
 }
 
 post_upgrade() {
-  log "Finalizando upgrade"
+	post_install
 }
-
-
-
