@@ -1,0 +1,5 @@
+group "packagekit_config" struct {
+    value "update_interval" int: 1440;
+    value "last_update" int: 0;
+    value "show_description" int: 1;
+}

@@ -1,0 +1,10 @@
+group "Quickaccess_Config" struct {
+    value "config_version" uint: 1000000;
+    value "autohide" uchar: 0;
+    value "hide_when_behind" uchar: 0;
+    value "skip_window_list" uchar: 1;
+    value "skip_taskbar" uchar: 1;
+    value "skip_pager" uchar: 1;
+    value "dont_bug_me" uchar: 0;
+    value "first_run" uchar: 1;
+}

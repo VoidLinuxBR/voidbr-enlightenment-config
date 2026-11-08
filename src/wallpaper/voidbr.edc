@@ -1,0 +1,32 @@
+/*
+ * Wallpaper VoidBR para o Enlightenment.
+ * Compilado pelo build.sh a partir do papel de parede do voidbr-wallpapers:
+ *   edje_cc -DIMG_FILE='"voidbr-wallpaper.avif"' -DIMG_W=<largura> -DIMG_H=<altura> \
+ *           -id <dir> voidbr.edc voidbr.edj
+ * A imagem cobre a tela inteira mantendo a proporção (como o "zoom" do GNOME).
+ */
+images {
+   image: IMG_FILE LOSSY 92;
+}
+collections {
+   group { name: "e/desktop/background";
+      data {
+         item: "style" "4";
+         item: "noanimation" "1";
+      }
+      parts {
+         part { name: "bg"; type: RECT; mouse_events: 0;
+            description { state: "default" 0.0;
+               color: 26 27 38 255; /* Tokyo Night #1a1b26 */
+            }
+         }
+         part { name: "image"; type: IMAGE; mouse_events: 0;
+            description { state: "default" 0.0;
+               aspect: (IMG_W / IMG_H) (IMG_W / IMG_H);
+               aspect_preference: NONE;
+               image.normal: IMG_FILE;
+            }
+         }
+      }
+   }
+}

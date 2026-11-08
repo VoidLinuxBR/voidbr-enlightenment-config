@@ -1,0 +1,4 @@
+group "music_control_config" struct {
+    value "player_selected" int: -1;
+    value "pause_on_desklock" int: 0;
+}

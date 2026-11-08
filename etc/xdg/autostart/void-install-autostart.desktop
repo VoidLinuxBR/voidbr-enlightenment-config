@@ -1,9 +1,10 @@
 [Desktop Entry]
-Version=1.0
-Name=Instalador Void Linux
+Type=Application
+Name=VoidBR session setup
+Name[pt_BR]=Preparação da sessão VoidBR
+Comment=Creates user folders and, on the live system, the installer shortcut
+Comment[pt_BR]=Cria as pastas do usuário e, no live, o atalho do instalador
 Exec=start-install-void
 Terminal=false
-Type=Application
-X-GNOME-Autostart-Phase=Initialization
-X-GNOME-HiddenUnderSystemd=true
-X-KDE-autostart-phase=1
+NoDisplay=true
+OnlyShowIn=Enlightenment;

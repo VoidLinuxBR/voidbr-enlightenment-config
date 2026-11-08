@@ -1,35 +1,31 @@
 #!/bin/sh
+# start-install-void - executado no login (via /etc/xdg/autostart)
+#  - cria/atualiza as pastas do usuário (xdg-user-dirs)
+#  - no live, coloca o atalho do instalador na Área de Trabalho
 
-#Keyboard LED
-if [ -e "$HOME/.config/ledkeyboard" ]; then
+# LED do teclado
+if [ -e "$HOME/.config/ledkeyboard" ] && command -v change-keyboard-led >/dev/null 2>&1; then
 	change-keyboard-led on
 fi
 
-#Create user-dirs
-xdg-user-dirs-update
-xdg-user-dirs-update --force
+# Pastas do usuário (Área de trabalho, Documentos, ...)
+command -v xdg-user-dirs-update >/dev/null 2>&1 && xdg-user-dirs-update
 
-### Execute in LiveCD
-if [ -e /run/initramfs/live/LiveOS/squashfs.img ]; then
-	# Copy the install file to the desktop and configure permissions
-	homeDesk="/home/anon/Desktop"
-	homeArea=/home/anon/'Área de trabalho'
-	cfile='void-install.desktop'
-	cfullFilename="$homeArea/$cfile"
+# Só no live
+[ -e /run/initramfs/live/LiveOS/squashfs.img ] || exit 0
 
-	if [ ! -d "$homeArea" ]; then
-		mkdir -p "$homeDesk"
-		mkdir -p "$homeArea"
-	fi
+cfile='void-install.desktop'
+src="/usr/share/applications/$cfile"
+[ -f "$src" ] || exit 0
 
-	cp -f /usr/share/applications/$cfile "$cfullFilename"
-	# Generate the SHA256sum of the file on each boot
-	checksum=$(sha256sum "$cfullFilename" | awk '{print $1}')
+desktop_dir=$(xdg-user-dir DESKTOP 2>/dev/null)
+[ -n "$desktop_dir" ] && [ "$desktop_dir" != "$HOME" ] || desktop_dir="$HOME/Desktop"
+mkdir -p "$desktop_dir"
 
-	# Set metadata using gio
-	gio set "$cfullFilename" metadata::xfce-exe-checksum "$checksum"
-	gio set "$cfullFilename" metadata::trusted true
-	chmod +x "$cfullFilename"
+dest="$desktop_dir/$cfile"
+cp -f "$src" "$dest"
+chmod +x "$dest"
+# marca o atalho como confiável nos gerenciadores de arquivos baseados em GIO
+command -v gio >/dev/null 2>&1 && gio set "$dest" metadata::trusted true 2>/dev/null
 
-#	cp -f $cfullFileName "$homeDesk/"
-fi
+exit 0
