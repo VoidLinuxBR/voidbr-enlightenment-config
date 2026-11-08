@@ -1,0 +1,150 @@
+/*
+ * Tema complementar VoidBR para o Enlightenment.
+ *
+ * Só traz o que muda em relação ao tema padrão: o estilo de shelf "voidbr",
+ * uma barra flutuante com cantos arredondados (como as "ilhas" da edição GNOME).
+ * O resto vem do tema "default": o Elementary usa a lista "voidbr:default" e
+ * procura cada grupo primeiro aqui e depois no default.
+ *
+ * As cores seguem a paleta ativa (voidbr): a ilha usa :bg-semi (fundo
+ * translúcido) e a borda :bg-higher.
+ *
+ * Compilado pelo build.sh:  edje_cc -id src/theme voidbr.edc voidbr.edj
+ */
+
+data {
+   item: "version" "119";
+}
+
+color_tree {
+   ":bg-semi" {
+      "/voidbr/shelf/island";
+   }
+   ":bg-higher" {
+      "/voidbr/shelf/island/border";
+   }
+}
+
+images {
+   image: "island.png" COMP;
+   image: "island_border.png" COMP;
+}
+
+collections {
+   /* GAP: distância da ilha até a borda da tela; PAD: espaço interno */
+#define GAP 8
+#define PAD 6
+
+   group { name: "e/shelf/voidbr/base"; nomouse;
+      data {
+         /* a shelf não é retangular: o que fica fora da ilha é transparente */
+         item: "shaped" "1";
+         item: "noshadow" "1";
+         item: "hidden_state_size" "2";
+      }
+      parts {
+         rect { "mouse"; mouse;
+            desc { color: 0 0 0 0; }
+         }
+         /* ilha: área desenhada, afastada GAP px da borda da tela */
+         spacer { "island_area";
+            scale: 1;
+            desc { "default";
+               rel1.offset: 0 0;
+               rel2.offset: -1 (-1 - GAP);
+               offscale;
+            }
+            desc { "top";
+               rel1.offset: 0 GAP;
+               rel2.offset: -1 -1;
+               offscale;
+            }
+            desc { "left";
+               rel1.offset: GAP 0;
+               rel2.offset: -1 -1;
+               offscale;
+            }
+            desc { "right";
+               rel1.offset: 0 0;
+               rel2.offset: (-1 - GAP) -1;
+               offscale;
+            }
+         }
+         image { "island"; nomouse;
+            desc {
+               rel.to: "island_area";
+               image.normal: "island.png";
+               image.border: 16 16 16 16;
+               image.border_scale: 1;
+               color_class: "/voidbr/shelf/island";
+            }
+         }
+         image { "island_border"; nomouse;
+            desc {
+               rel.to: "island_area";
+               image.normal: "island_border.png";
+               image.border: 16 16 16 16;
+               image.border_scale: 1;
+               image.middle: NONE;
+               color_class: "/voidbr/shelf/island/border";
+            }
+         }
+         /* gadgets dentro da ilha, com PAD px de folga nas laterais */
+         spacer { "sizer";
+            scale: 1;
+            desc { "default";
+               rel.to: "island_area";
+               rel1.offset: (PAD + 4) 2;
+               rel2.offset: (-1 - PAD - 4) -3;
+               offscale;
+            }
+            desc { "vert";
+               rel.to: "island_area";
+               rel1.offset: 2 (PAD + 4);
+               rel2.offset: -3 (-1 - PAD - 4);
+               offscale;
+            }
+         }
+         part { name: "e.swallow.content"; type: SWALLOW; mouse;
+            desc {
+               rel.to: "sizer";
+               link.base: "e,state,visible" "e";
+            }
+            desc { "hidden"; hid;
+               rel.to: "sizer";
+               link.base: "e,state,hidden" "e";
+            }
+         }
+         rect { "events"; repeat; mouse;
+            desc { color: 0 0 0 0; }
+         }
+      }
+      programs {
+#define ORIENT(_ORIENT, _AREA, _SIZER) \
+         program { signal: "e,state,orientation,"_ORIENT; source: "e"; \
+            action: STATE_SET _AREA 0.0; \
+            target: "island_area"; \
+            after: "sizer_"_ORIENT; \
+         } \
+         program { name: "sizer_"_ORIENT; \
+            action: STATE_SET _SIZER 0.0; \
+            target: "sizer"; \
+         }
+         ORIENT("top", "top", "default")
+         ORIENT("top_left", "top", "default")
+         ORIENT("top_right", "top", "default")
+         ORIENT("bottom", "default", "default")
+         ORIENT("bottom_left", "default", "default")
+         ORIENT("bottom_right", "default", "default")
+         ORIENT("left", "left", "vert")
+         ORIENT("left_top", "left", "vert")
+         ORIENT("left_bottom", "left", "vert")
+         ORIENT("right", "right", "vert")
+         ORIENT("right_top", "right", "vert")
+         ORIENT("right_bottom", "right", "vert")
+#undef ORIENT
+      }
+   }
+#undef GAP
+#undef PAD
+}

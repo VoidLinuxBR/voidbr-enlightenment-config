@@ -404,8 +404,8 @@ group "E_Config" struct {
             value "orient" int: 6;
             value "fit_along" uchar: 1;
             value "fit_size" uchar: 0;
-            value "style" string: "default";
-            value "size" int: 48;
+            value "style" string: "voidbr";
+            value "size" int: 56;
             value "overlap" int: 0;
             value "autohide" int: 0;
             value "autohide_show_action" int: 0;

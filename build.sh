@@ -10,6 +10,7 @@
 #     usr/share/voidbr-enlightenment/backgrounds/   wallpaper .edj (do voidbr-wallpapers)
 #     etc/skel/.e/e/config/                         perfil voidbr já ativo para novos usuários
 #     usr/share/elementary/config/voidbr/           perfil voidbr do Elementary
+#     usr/share/elementary/themes/voidbr.edj        tema complementar (barra em ilha)
 #     etc/skel/.elementary/config/{voidbr,standard} tema flat + paleta voidbr + ícones Tokyonight
 #     usr/share/terminology/colorschemes/           esquema "VoidBR Tokyo Night" do Terminology
 #     etc/skel/.config/terminology/                 Terminology usando esse esquema
@@ -113,7 +114,16 @@ else
 	warn "${wallpaper} não encontrado (voidbr-wallpapers) - o E usará o fundo padrão do tema"
 fi
 
-# 5. terminology: esquema de cores "VoidBR Tokyo Night" e config padrão que o usa
+# 5. tema complementar "voidbr" (barra flutuante com cantos arredondados).
+#    O Elementary usa a lista "voidbr:default": grupos que não estão aqui vêm do default.
+command -v edje_cc >/dev/null || die "edje_cc não encontrado (necessário para o tema)"
+msg "Tema complementar voidbr (barra em ilha)"
+install -d "${destdir}/usr/share/elementary/themes"
+edje_cc -id "${srcdir}/theme" "${srcdir}/theme/voidbr.edc" \
+	"${destdir}/usr/share/elementary/themes/voidbr.edj" ||
+	die "falha ao compilar o tema voidbr"
+
+# 6. terminology: esquema de cores "VoidBR Tokyo Night" e config padrão que o usa
 #    (a config vai com version 2 de propósito: o Terminology completa o resto, como os
 #    atalhos padrão, pelo próprio caminho de atualização da config)
 msg "Terminology (esquema VoidBR Tokyo Night)"
@@ -124,7 +134,7 @@ eet_compile "${destdir}/etc/skel/.config/terminology/config/standard/base.cfg" \
 
 # eet e edje_cc criam arquivos com modo 0600; os usuários precisam ler
 for dir in usr/share/enlightenment/data/config/${profile} usr/share/elementary/colors usr/share/elementary/config/${profile} \
-	usr/share/voidbr-enlightenment usr/share/terminology etc/skel/.e etc/skel/.elementary etc/skel/.config/terminology; do
+	usr/share/voidbr-enlightenment usr/share/terminology usr/share/elementary/themes etc/skel/.e etc/skel/.elementary etc/skel/.config/terminology; do
 	[[ -d "${destdir}/${dir}" ]] && chmod -R u=rwX,go=rX "${destdir}/${dir}"
 done
 
