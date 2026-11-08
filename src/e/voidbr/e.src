@@ -1270,6 +1270,10 @@ group "E_Config" struct {
             value "name" string: "xkbswitch";
             value "enabled" uchar: 0;
         }
+        group "E_Config_Module" struct {
+            value "name" string: "msgbus";
+            value "enabled" uchar: 1;
+        }
     }
     value "config_version" int: 1000035;
     value "config_type" uint: 3;

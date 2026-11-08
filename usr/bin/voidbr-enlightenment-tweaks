@@ -1,0 +1,1117 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+#
+#   voidbr-enlightenment-tweaks
+#   Created: dom 08 nov 2026 15:30:00 -04
+#   Altered: dom 08 nov 2026 15:30:00 -04
+#
+#   Copyright (c) 2026, Vilmar Catafesta <vcatafesta@gmail.com>
+#   Copyright (c) 2026, VoidLinuxBR Team
+#   Assembled By Vilmar Catafesta for the VoidBR project.
+#   All rights reserved.
+#
+#   ChangeLog:
+#   - v1.0 (2026-11-08): Versão inicial — GTK4 + PyGObject, no modelo do
+#     voidbr-gnome-tweaks e do voidbr-xfce-tweaks. Abas Barra (estilo em ilha,
+#     posição, tamanho, esconder sozinha), Aparência (paleta, ícones, tema GTK,
+#     escala), Papel de parede (voidbr-wallpapers ou imagem própria) e Módulos
+#     e atalhos. Botões Aplicar, Padrão VoidBR e Padrão Enlightenment.
+#
+#   Redistribution and use in source and binary forms, with or without
+#   modification, are permitted provided that the following conditions
+#   are met:
+#   1. Redistributions of source code must retain the above copyright
+#      notice, this list of conditions and the following disclaimer.
+#   2. Redistributions in binary form must reproduce the above copyright
+#      notice, this list of conditions and the following disclaimer in the
+#      documentation and/or other materials provided with the distribution.
+#
+#   THIS SOFTWARE IS PROVIDED BY Vilmar Catafesta ''AS IS'' AND ANY EXPRESS OR
+#   IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+#   OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+#   IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+#   INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+#   NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+#   DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+#   THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+#   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+#   THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+##############################################################################
+"""
+VoidBR Enlightenment Tweaks - ajustes do Enlightenment do VoidBR (barra em
+ilha, aparência, papel de parede, módulos e atalhos) sem abrir arquivo de
+configuração.
+
+Requer: PyGObject (GTK4) e eet (pacote efl).
+    sudo xbps-install -S python3-gobject gtk4
+
+Como aplica sem o Enlightenment sobrescrever:
+    A config do E fica em arquivos binários (EET) e o E grava a dele por cima
+    quando sai. Por isso o app copia o perfil atual (~/.e/e/config/<perfil>)
+    para um perfil irmão (<perfil>-alt, e na vez seguinte de volta para
+    <perfil>), altera a cópia e pede ao E, pelo DBus (Profile.Set), para trocar
+    de perfil. O E grava o perfil atual, troca e reinicia lendo a cópia.
+    Com o E fechado, o app altera o perfil atual direto.
+
+O que o app altera (sempre no usuário atual):
+    ~/.e/e/config/<perfil>/e.cfg             barra, ícones, GTK, escala, papel
+                                              de parede, módulos
+    ~/.elementary/config/<perfil>/base.cfg    paleta, ícones, escala
+    ~/.e/e/backgrounds/                       papéis de parede convertidos (.edj)
+    ~/.config/voidbr/enlightenment-tweaks.json  fonte do próprio app
+"""
+
+import gi
+import glob
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+import threading
+
+gi.require_version("Gtk", "4.0")
+from gi.repository import Gtk, GLib, Gio
+
+VERSAO = "1.0"
+APP_ID = "org.voidbr.EnlightenmentTweaks"
+
+HOME = os.path.expanduser("~")
+CONFIG = os.environ.get("XDG_CONFIG_HOME") or os.path.join(HOME, ".config")
+PREFS_APP = os.path.join(CONFIG, "voidbr", "enlightenment-tweaks.json")
+ESCALA_MIN, ESCALA_MAX = 0.7, 2.0
+
+E_CFG = os.path.join(HOME, ".e", "e", "config")
+E_BG = os.path.join(HOME, ".e", "e", "backgrounds")
+ELM_CFG = os.path.join(HOME, ".elementary", "config")
+SYS_E_CFG = "/usr/share/enlightenment/data/config"
+SYS_ELM_CFG = "/usr/share/elementary/config"
+PERFIL_VOIDBR = "voidbr"
+
+PAPEL_PASTA = "/usr/share/backgrounds/voidbr"
+PAPEL_VOIDBR = "/usr/share/voidbr-enlightenment/backgrounds/voidbr.edj"
+PAPEL_EXT = (".avif", ".jpg", ".jpeg", ".png", ".webp", ".jxl", ".heic", ".edj")
+
+E_BUS = "org.enlightenment.wm.service"
+E_PATH = "/org/enlightenment/wm/RemoteObject"
+
+# estilos da barra (o "voidbr" vem do tema complementar voidbr.edj)
+ESTILOS = [
+    ("voidbr", "Ilha VoidBR (flutuante, cantos arredondados)"),
+    ("default", "Padrão do Enlightenment"),
+    ("translucent", "Translúcida"),
+    ("invisible", "Invisível (só os ícones)"),
+]
+# E_Gadcon_Orient: LEFT=3 RIGHT=4 TOP=5 BOTTOM=6
+POSICOES = [(6, "Embaixo"), (5, "Em cima"), (3, "À esquerda"), (4, "À direita")]
+
+# módulos mostrados (nome, título, dica); só aparecem os instalados
+MODULOS = [
+    ("networkmanager", "Rede (NetworkManager)", "Wi-Fi, cabo e VPN no gadget da barra (E 0.28)"),
+    ("connman", "Rede (ConnMan)", "só para quem usa o connman em vez do NetworkManager"),
+    ("bluez5", "Bluetooth", "adaptadores e dispositivos no gadget da barra"),
+    ("clipboard", "Área de transferência", "histórico do que foi copiado (E 0.28)"),
+    ("tiling", "Mosaico", "janelas lado a lado automaticamente"),
+    ("everything", "Everything", "busca de apps, arquivos e janelas (Super+Espaço)"),
+    ("shot", "Captura de tela", "tecla Print"),
+    ("music-control", "Controle de música", "player na barra (MPRIS)"),
+    ("packagekit", "Atualizações", "aviso de atualizações pelo PackageKit"),
+    ("geolocation", "Localização", "indicador de uso da localização"),
+]
+
+# nomes amigáveis das ações dos atalhos
+ACOES = {
+    "everything": "Everything (busca)",
+    "menu_show": "Menu",
+    "fileman": "Gerenciador de arquivos",
+    "exec": "Executar",
+    "desk_lock": "Bloquear a tela",
+    "desk_deskshow_toggle": "Mostrar a área de trabalho",
+    "window_close": "Fechar a janela",
+    "window_maximized_toggle": "Maximizar / encaixar",
+    "window_iconic_toggle": "Minimizar",
+    "desk_linear_flip_to": "Ir para a área de trabalho",
+    "window_desk_move_to": "Mandar a janela para a área de trabalho",
+    "desk_flip_by": "Trocar de área de trabalho",
+    "syscon": "Menu de desligar",
+    "winlist": "Alternar janelas",
+}
+
+CSS = """
+window { background-color: #1e1f29; }
+label { color: #f1f1f1; }
+.titulo-app { font-size: 20px; font-weight: 800; color: #9ece6a; }
+.subtitulo { color: #a9b1d6; font-size: 12px; }
+.rotulo-campo { font-weight: bold; }
+.dica { color: #8a8fa8; font-size: 11px; }
+.secao { color: #7aa2f7; font-weight: bold; margin-top: 6px; }
+.aviso { color: #e0af68; }
+.atalho { font-family: monospace; color: #9ece6a; }
+.conteudo button.botao-verde, .botao-verde { background: linear-gradient(180deg, #34d399, #059669); color: white;
+    font-weight: bold; border-radius: 10px; padding: 10px 14px; }
+.conteudo button.botao-verde:hover, .botao-verde:hover { background: #34d399; }
+.conteudo button.botao-laranja, .botao-laranja { background: linear-gradient(180deg, #fbbf24, #d97706); color: white;
+    font-weight: bold; border-radius: 10px; padding: 10px 14px; }
+.conteudo button.botao-laranja:hover, .botao-laranja:hover { background: #fbbf24; }
+.conteudo button.botao-azul, .botao-azul { background: linear-gradient(180deg, #60a5fa, #2563eb); color: white;
+    font-weight: bold; border-radius: 10px; padding: 10px 14px; }
+.conteudo button.botao-azul:hover, .botao-azul:hover { background: #60a5fa; }
+.caixa-status { background-color: #2a2b3a; border-radius: 10px; padding: 8px; }
+.cabecalho-app { background-color: #1a1b26; color: #f1f1f1; }
+.botao-fonte { font-weight: bold; padding: 2px 10px; min-height: 24px; background: #3b3d52;
+    color: #f1f1f1; border: 1px solid #4b4e66; }
+.botao-fonte label { color: #f1f1f1; }
+.botao-fonte:hover { background: #4b4e66; }
+.botao-fonte:disabled { background: #2a2b3a; }
+notebook > header, notebook > stack, scrolledwindow, viewport { background-color: #24283b; }
+notebook > header tab label { color: #a9b1d6; }
+notebook > header tab:checked label { color: #ffffff; }
+.conteudo button { background: #3b3d52; color: #f1f1f1; border: 1px solid #4b4e66; }
+.conteudo button label { color: #f1f1f1; }
+popover contents, popover arrow { background-color: #2a2b3a; }
+"""
+
+
+# ---------------------------------------------------------------------------
+#   preferências do próprio app
+# ---------------------------------------------------------------------------
+
+def ler_prefs_app():
+    try:
+        with open(PREFS_APP, encoding="utf-8") as f:
+            dados = json.load(f)
+        return dados if isinstance(dados, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def gravar_prefs_app(**valores):
+    dados = ler_prefs_app()
+    dados.update(valores)
+    os.makedirs(os.path.dirname(PREFS_APP), exist_ok=True)
+    with open(PREFS_APP, "w", encoding="utf-8") as f:
+        json.dump(dados, f, indent=2, ensure_ascii=False)
+        f.write("\n")
+
+
+# ---------------------------------------------------------------------------
+#   EET (formato binário da config do E e do Elementary)
+# ---------------------------------------------------------------------------
+
+def eet_ler(caminho, chave="config"):
+    """Texto da config (eet -d). Vazio se o arquivo não existir."""
+    if not os.path.isfile(caminho):
+        return ""
+    r = subprocess.run(["eet", "-d", caminho, chave], capture_output=True, text=True)
+    return r.stdout if r.returncode == 0 else ""
+
+
+def eet_gravar(caminho, texto, chave="config"):
+    """Compila o texto de volta (eet -e) num arquivo novo e troca o antigo."""
+    pasta = os.path.dirname(caminho)
+    os.makedirs(pasta, exist_ok=True)
+    with tempfile.NamedTemporaryFile("w", suffix=".src", dir=pasta, delete=False,
+                                     encoding="utf-8") as f:
+        f.write(texto)
+        src = f.name
+    novo = caminho + ".novo"
+    try:
+        if os.path.exists(novo):
+            os.remove(novo)
+        r = subprocess.run(["eet", "-e", novo, chave, src, "1"], capture_output=True, text=True)
+        if r.returncode != 0 or not os.path.isfile(novo):
+            raise RuntimeError(f"eet falhou em {caminho}: {r.stderr.strip()[:200]}")
+        os.chmod(novo, 0o644)
+        os.replace(novo, caminho)
+    finally:
+        os.remove(src)
+
+
+def _valor(tipo, bruto):
+    bruto = bruto.strip()
+    if tipo == "string":
+        return bruto[1:-1] if bruto.startswith('"') and bruto.endswith('"') else bruto
+    if tipo in ("double", "float"):
+        return float(bruto)
+    try:
+        return int(bruto)
+    except ValueError:
+        return bruto
+
+
+def _formatar(tipo, v):
+    if tipo == "string":
+        return f'"{v}"'
+    if tipo in ("double", "float"):
+        return f"{float(v):.25f}"
+    return str(int(v))
+
+
+def topo_ler(txt, chave, padrao=None):
+    """Valor de primeiro nível (4 espaços) da config."""
+    m = re.search(r'^    value "%s" (\w+): (.*);$' % re.escape(chave), txt, re.M)
+    return _valor(m.group(1), m.group(2)) if m else padrao
+
+
+def topo_gravar(txt, chave, tipo, v):
+    linha = f'    value "{chave}" {tipo}: {_formatar(tipo, v)};'
+    pad = re.compile(r'^    value "%s" \w+: .*;$' % re.escape(chave), re.M)
+    if pad.search(txt):
+        return pad.sub(lambda _m: linha, txt, count=1)
+    i = txt.rstrip().rfind("}")
+    return txt[:i] + linha + "\n" + txt[i:]
+
+
+def _bloco(txt, cabecalho, inicio=0):
+    """(início, fim) do bloco 'group ...' cujo cabeçalho casa com a regex,
+    contando as chaves. None se não achar."""
+    m = re.compile(cabecalho, re.M).search(txt, inicio)
+    if not m:
+        return None
+    nivel = 0
+    i = m.start()
+    while i < len(txt):
+        c = txt[i]
+        if c == "{":
+            nivel += 1
+        elif c == "}":
+            nivel -= 1
+            if nivel == 0:
+                fim = txt.find("\n", i)
+                return m.start(), (len(txt) if fim < 0 else fim + 1)
+        i += 1
+    return None
+
+
+def _remover_bloco(txt, cabecalho):
+    b = _bloco(txt, cabecalho)
+    return txt if not b else txt[:b[0]] + txt[b[1]:]
+
+
+def _shelf(txt):
+    lista = _bloco(txt, r'^    group "shelves" list \{')
+    if not lista:
+        return None
+    return _bloco(txt, r'^        group "E_Config_Shelf" struct \{', lista[0])
+
+
+def shelf_ler(txt):
+    b = _shelf(txt)
+    if not b:
+        return {}
+    s = txt[b[0]:b[1]]
+
+    def val(k, padrao):
+        m = re.search(r'^            value "%s" (\w+): (.*);$' % k, s, re.M)
+        return _valor(m.group(1), m.group(2)) if m else padrao
+    return {"estilo": val("style", "default"), "posicao": val("orient", 6),
+            "tamanho": val("size", 40), "ajustar": bool(val("fit_along", 1)),
+            "esconder": bool(val("autohide", 0))}
+
+
+def shelf_gravar(txt, d):
+    b = _shelf(txt)
+    if not b:
+        return txt
+    s = txt[b[0]:b[1]]
+    for chave, tipo, v in (("style", "string", d["estilo"]), ("orient", "int", d["posicao"]),
+                           ("size", "int", d["tamanho"]), ("fit_along", "uchar", int(d["ajustar"])),
+                           ("autohide", "int", int(d["esconder"]))):
+        linha = f'            value "{chave}" {tipo}: {_formatar(tipo, v)};'
+        pad = re.compile(r'^            value "%s" \w+: .*;$' % chave, re.M)
+        if pad.search(s):
+            s = pad.sub(lambda _m: linha, s, count=1)
+        else:
+            i = s.rstrip().rfind("}")
+            i = s.rfind("\n", 0, i) + 1  # início da linha do "}" que fecha o struct
+            s = s[:i] + linha + "\n" + s[i:]
+    return txt[:b[0]] + s + txt[b[1]:]
+
+
+def modulos_ler(txt):
+    b = _bloco(txt, r'^    group "modules" list \{')
+    if not b:
+        return {}
+    ativos = {}
+    for nome, en in re.findall(r'value "name" string: "([^"]+)";\s*\n\s*value "enabled" uchar: (\d+);',
+                               txt[b[0]:b[1]]):
+        ativos.setdefault(nome, en == "1")
+    return ativos
+
+
+def modulos_gravar(txt, nome, ligado):
+    b = _bloco(txt, r'^    group "modules" list \{')
+    if not b:
+        return txt
+    s = txt[b[0]:b[1]]
+    pad = re.compile(r'(value "name" string: "%s";\s*\n\s*value "enabled" uchar: )\d+;' % re.escape(nome))
+    if pad.search(s):
+        s = pad.sub(lambda m: m.group(1) + ("1;" if ligado else "0;"), s)
+    elif ligado:
+        novo = ('        group "E_Config_Module" struct {\n'
+                f'            value "name" string: "{nome}";\n'
+                '            value "enabled" uchar: 1;\n'
+                '        }\n')
+        i = s.rstrip().rfind("}")
+        i = s.rfind("\n", 0, i) + 1      # início da linha do "}" que fecha a lista
+        s = s[:i] + novo + s[i:]
+    return txt[:b[0]] + s + txt[b[1]:]
+
+
+def atalhos_super(txt):
+    """Atalhos com a tecla Super (modificador 8), para mostrar na aba."""
+    b = _bloco(txt, r'^    group "key_bindings" list \{')
+    if not b:
+        return []
+    saida = []
+    for bloco in re.findall(r'group "E_Config_Binding_Key" struct \{(.*?)\n        \}', txt[b[0]:b[1]], re.S):
+        mod = re.search(r'"modifiers" int: (\d+);', bloco)
+        tecla = re.search(r'"key" string: "([^"]*)";', bloco)
+        acao = re.search(r'"action" string: "([^"]*)";', bloco)
+        par = re.search(r'"params" string: "([^"]*)";', bloco)
+        if not (mod and tecla and acao) or not int(mod.group(1)) & 8:
+            continue
+        m = int(mod.group(1))
+        nomes = ["Super"] + (["Shift"] if m & 1 else []) + (["Ctrl"] if m & 2 else []) + \
+                (["Alt"] if m & 4 else [])
+        t = tecla.group(1)
+        t = {"space": "Espaço", "Left": "←", "Right": "→", "Up": "↑", "Down": "↓"}.get(t, t.upper() if len(t) == 1 else t)
+        descr = ACOES.get(acao.group(1), acao.group(1))
+        if par and par.group(1):
+            p = par.group(1)
+            if acao.group(1) in ("desk_linear_flip_to", "window_desk_move_to"):
+                p = str(int(p.split()[0]) + 1)
+            elif acao.group(1) == "window_maximized_toggle":
+                p = {"default left": "metade esquerda", "default right": "metade direita"}.get(p, p)
+            descr += f" ({p})"
+        saida.append(("+".join(nomes + [t]), descr))
+    return saida
+
+
+# ---------------------------------------------------------------------------
+#   DBus do Enlightenment
+# ---------------------------------------------------------------------------
+
+def e_dbus(interface, metodo, params=None, tipo=None, timeout=3000):
+    try:
+        bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+        r = bus.call_sync(E_BUS, E_PATH, "org.enlightenment.wm." + interface, metodo,
+                          params, GLib.VariantType(tipo) if tipo else None,
+                          Gio.DBusCallFlags.NONE, timeout, None)
+        return r.unpack() if r is not None else ()
+    except GLib.Error:
+        return None
+
+
+def e_rodando():
+    return e_dbus("Core", "Version", tipo="(s)") is not None
+
+
+def perfil_atual():
+    r = e_dbus("Profile", "Get", tipo="(s)")
+    if r:
+        return r[0]
+    p = os.path.join(E_CFG, "profile.cfg")
+    if os.path.isfile(p):
+        tmp = tempfile.mktemp()
+        if subprocess.run(["eet", "-x", p, "config", tmp], capture_output=True).returncode == 0:
+            with open(tmp, encoding="utf-8", errors="replace") as f:
+                nome = f.read().strip("\0\n ")
+            os.remove(tmp)
+            if nome:
+                return nome
+    return PERFIL_VOIDBR
+
+
+def perfil_irmao(perfil):
+    return perfil[:-4] if perfil.endswith("-alt") else perfil + "-alt"
+
+
+def caminhos(perfil):
+    """(e.cfg, e_comp.cfg, base.cfg) do usuário; cai no sistema se faltar."""
+    e_dir = os.path.join(E_CFG, perfil)
+    if not os.path.isfile(os.path.join(e_dir, "e.cfg")):
+        e_dir = os.path.join(SYS_E_CFG, perfil if os.path.isdir(os.path.join(SYS_E_CFG, perfil))
+                             else PERFIL_VOIDBR)
+    elm = os.path.join(ELM_CFG, perfil, "base.cfg")
+    if not os.path.isfile(elm):
+        for alt in (os.path.join(ELM_CFG, "standard", "base.cfg"),
+                    os.path.join(SYS_ELM_CFG, PERFIL_VOIDBR, "base.cfg"),
+                    os.path.join(SYS_ELM_CFG, "standard", "base.cfg")):
+            if os.path.isfile(alt):
+                elm = alt
+                break
+    return os.path.join(e_dir, "e.cfg"), os.path.join(e_dir, "e_comp.cfg"), elm
+
+
+# ---------------------------------------------------------------------------
+#   listas (paletas, ícones, temas GTK, papéis de parede, módulos)
+# ---------------------------------------------------------------------------
+
+def paletas():
+    nomes = set()
+    for pasta in ("/usr/share/elementary/colors", os.path.join(HOME, ".elementary", "colors")):
+        for f in glob.glob(os.path.join(pasta, "*.pal")):
+            n = os.path.basename(f)[:-4]
+            if n != "empty":
+                nomes.add(n)
+    titulos = {"voidbr": "VoidBR (Tokyo Night)", "default": "Padrão do EFL (cinza)"}
+    return [(n, titulos.get(n, n.replace("-", " ").title()))
+            for n in sorted(nomes, key=lambda x: (x != "voidbr", x != "default", x))]
+
+
+def _temas(pastas, exige):
+    nomes = set()
+    for base in pastas:
+        for d in glob.glob(os.path.join(base, "*")):
+            if any(os.path.exists(os.path.join(d, e)) for e in exige):
+                nomes.add(os.path.basename(d))
+    return [(n, n) for n in sorted(nomes, key=str.lower)]
+
+
+def temas_icones():
+    return _temas(["/usr/share/icons", os.path.join(HOME, ".local/share/icons"),
+                   os.path.join(HOME, ".icons")], ["index.theme"])
+
+
+def temas_gtk():
+    return _temas(["/usr/share/themes", os.path.join(HOME, ".local/share/themes"),
+                   os.path.join(HOME, ".themes")], ["gtk-3.0", "gtk-4.0"])
+
+
+def papeis():
+    lista = [(PAPEL_VOIDBR, "VoidBR (padrão)")] if os.path.isfile(PAPEL_VOIDBR) else []
+    for f in sorted(glob.glob(os.path.join(PAPEL_PASTA, "*")), key=str.lower):
+        if f.lower().endswith(PAPEL_EXT):
+            nome = os.path.splitext(os.path.basename(f))[0].replace("_", " ").replace("-", " ")
+            lista.append((f, nome))
+    return lista
+
+
+def modulos_instalados():
+    pastas = [os.path.join(p, "enlightenment", "modules")
+              for p in ("/usr/lib", "/usr/lib64", "/usr/lib/x86_64-linux-gnu")]
+    return {m for m, *_ in MODULOS if any(os.path.isdir(os.path.join(p, m)) for p in pastas)}
+
+
+def gerar_papel(origem):
+    """Converte uma imagem em .edj (o E só aceita .edj) e devolve o caminho."""
+    if origem.lower().endswith(".edj"):
+        return origem
+    gen = next((g for g in glob.glob("/usr/lib*/enlightenment/utils/enlightenment_wallpaper_gen") +
+                glob.glob("/usr/lib/*/enlightenment/utils/enlightenment_wallpaper_gen")
+                if os.access(g, os.X_OK)), None)
+    if not gen or not shutil.which("edje_cc"):
+        raise RuntimeError("enlightenment_wallpaper_gen ou edje_cc não encontrado")
+    os.makedirs(E_BG, exist_ok=True)
+    destino = os.path.join(E_BG, os.path.splitext(os.path.basename(origem))[0] + ".edj")
+    r = subprocess.run([gen, "edje_cc", "scale_out", origem, destino, "90"],
+                       capture_output=True, text=True)
+    if r.returncode != 0 or not os.path.isfile(destino):
+        raise RuntimeError(f"falha ao converter {os.path.basename(origem)}: {r.stderr.strip()[:200]}")
+    return destino
+
+
+# ---------------------------------------------------------------------------
+#   valores (atual, padrão VoidBR, padrão Enlightenment)
+# ---------------------------------------------------------------------------
+
+def valores_de(e_cfg, e_comp, elm_cfg):
+    e = eet_ler(e_cfg)
+    elm = eet_ler(elm_cfg)
+    comp = eet_ler(e_comp)
+    sh = shelf_ler(e)
+    v = {
+        "estilo": sh.get("estilo", "default"),
+        "posicao": sh.get("posicao", 6),
+        "tamanho": sh.get("tamanho", 40),
+        "ajustar": sh.get("ajustar", True),
+        "esconder": sh.get("esconder", False),
+        "paleta": topo_ler(elm, "palette", "default") or "default",
+        "icones": topo_ler(e, "icon_theme", "hicolor"),
+        "gtk_tema": topo_ler(e, "xsettings.net_theme_name", "") or "",
+        "escala": round(float(topo_ler(e, "scale.factor", 1.0)) * 100),
+        "papel": topo_ler(e, "desktop_default_background", "") or "",
+        "vsync": bool(topo_ler(comp, "vsync", 0)),
+        "modulos": {m: False for m, *_ in MODULOS},
+    }
+    v["modulos"].update({m: on for m, on in modulos_ler(e).items() if m in v["modulos"]})
+    v["_atalhos"] = atalhos_super(eet_ler(os.path.join(os.path.dirname(e_cfg), "e_bindings.cfg")))
+    return v
+
+
+def valores_atuais():
+    return valores_de(*caminhos(perfil_atual()))
+
+
+def valores_voidbr():
+    v = valores_de(os.path.join(SYS_E_CFG, PERFIL_VOIDBR, "e.cfg"),
+                   os.path.join(SYS_E_CFG, PERFIL_VOIDBR, "e_comp.cfg"),
+                   os.path.join(SYS_ELM_CFG, PERFIL_VOIDBR, "base.cfg"))
+    for m in ("networkmanager", "clipboard"):  # módulos do E 0.28
+        if m in modulos_instalados():
+            v["modulos"][m] = True
+    return v
+
+
+def valores_enlightenment():
+    v = valores_voidbr()
+    v.update({"estilo": "default", "tamanho": 40, "ajustar": True, "esconder": False,
+              "paleta": "default", "icones": "hicolor", "gtk_tema": "", "escala": 100,
+              "papel": ""})
+    return v
+
+
+# ---------------------------------------------------------------------------
+#   aplicar
+# ---------------------------------------------------------------------------
+
+NOMES = {"estilo": "estilo da barra", "posicao": "posição da barra", "tamanho": "tamanho da barra",
+         "ajustar": "largura da barra", "esconder": "esconder a barra", "paleta": "paleta",
+         "icones": "ícones", "gtk_tema": "tema GTK", "escala": "escala", "papel": "papel de parede",
+         "vsync": "vsync", "modulos": "módulos"}
+
+
+def aplicar(v, antes, progresso=lambda _t: None):
+    """Aplica o que mudou. Devolve a lista do que foi alterado."""
+    mudou = [k for k in NOMES if v.get(k) != antes.get(k)]
+    if not mudou:
+        return []
+    rodando = e_rodando()
+    if rodando and e_dbus("Profile", "Get", tipo="(s)") is None:
+        # a troca de perfil pelo DBus vem do módulo msgbus
+        raise RuntimeError("o módulo \"msgbus\" do Enlightenment está desligado. Ligue em "
+                           "Configurações → Módulos → Sistema → Message Bus e aplique de novo.")
+    perfil = perfil_atual()
+    destino = perfil_irmao(perfil) if rodando else perfil
+
+    papel = v["papel"]
+    if "papel" in mudou and papel:
+        progresso("🖼️ Convertendo o papel de parede…")
+        papel = gerar_papel(papel)
+
+    # cópia do perfil atual para o perfil irmão (o E grava o atual ao trocar)
+    e_orig, comp_orig, elm_orig = caminhos(perfil)
+    e_dir = os.path.join(E_CFG, destino)
+    elm_dir = os.path.join(ELM_CFG, destino)
+    if destino != perfil:
+        shutil.rmtree(e_dir, ignore_errors=True)
+        shutil.copytree(os.path.dirname(e_orig), e_dir)
+        shutil.rmtree(elm_dir, ignore_errors=True)
+        os.makedirs(elm_dir, exist_ok=True)
+        shutil.copy2(elm_orig, os.path.join(elm_dir, "base.cfg"))
+    else:
+        os.makedirs(e_dir, exist_ok=True)
+        os.makedirs(elm_dir, exist_ok=True)
+        if not os.path.isfile(os.path.join(e_dir, "e.cfg")):
+            for f in glob.glob(os.path.join(os.path.dirname(e_orig), "*.cfg")):
+                shutil.copy2(f, e_dir)
+        if not os.path.isfile(os.path.join(elm_dir, "base.cfg")):
+            shutil.copy2(elm_orig, os.path.join(elm_dir, "base.cfg"))
+    for f in glob.glob(os.path.join(e_dir, "*.cfg")) + glob.glob(os.path.join(elm_dir, "*.cfg")):
+        os.chmod(f, 0o644)
+
+    progresso("✍️ Gravando a configuração…")
+    e_cfg = os.path.join(e_dir, "e.cfg")
+    e = eet_ler(e_cfg)
+    e = shelf_gravar(e, v)
+    e = topo_gravar(e, "icon_theme", "string", v["icones"])
+    e = topo_gravar(e, "icon_theme_overrides", "uchar", 1)
+    if v["gtk_tema"]:
+        e = topo_gravar(e, "xsettings.match_e17_theme", "uchar", 0)
+        e = topo_gravar(e, "xsettings.net_theme_name", "string", v["gtk_tema"])
+    e = topo_gravar(e, "scale.use_custom", "uchar", 1)
+    e = topo_gravar(e, "scale.use_dpi", "uchar", 0)
+    e = topo_gravar(e, "scale.factor", "double", v["escala"] / 100.0)
+    if "papel" in mudou:
+        # papel por área de trabalho (definido pelo E) teria prioridade: sai
+        e = _remover_bloco(e, r'^    group "desktop_backgrounds" list \{')
+        e = topo_gravar(e, "desktop_default_background", "string", papel or "")
+    for m, ligado in v["modulos"].items():
+        if m in modulos_instalados() or not ligado:
+            e = modulos_gravar(e, m, ligado)
+    eet_gravar(e_cfg, e)
+
+    comp_cfg = os.path.join(e_dir, "e_comp.cfg")
+    if os.path.isfile(comp_cfg):
+        c = topo_gravar(eet_ler(comp_cfg), "vsync", "uchar", int(v["vsync"]))
+        eet_gravar(comp_cfg, c)
+
+    elm_cfg = os.path.join(elm_dir, "base.cfg")
+    elm = eet_ler(elm_cfg)
+    elm = topo_gravar(elm, "palette", "string", v["paleta"])
+    elm = topo_gravar(elm, "icon_theme", "string", v["icones"])
+    elm = topo_gravar(elm, "scale", "double", v["escala"] / 100.0)
+    eet_gravar(elm_cfg, elm)
+
+    if rodando:
+        progresso("🔄 Reiniciando o Enlightenment…")
+        e_dbus("Profile", "Set", GLib.Variant("(s)", (destino,)), timeout=5000)
+    return [NOMES[k] for k in mudou]
+
+
+# ---------------------------------------------------------------------------
+#   interface
+# ---------------------------------------------------------------------------
+
+def _escolha(dd, opcoes, valor):
+    for i, (v, _r) in enumerate(opcoes):
+        if v == valor:
+            dd.set_selected(i)
+            return
+    if opcoes and valor not in (None, ""):
+        # valor que não está na lista (ex.: tema removido): mostra mesmo assim
+        opcoes.append((valor, f"{valor} (atual)"))
+        dd.get_model().append(f"{valor} (atual)")
+        dd.set_selected(len(opcoes) - 1)
+
+
+class JanelaTweaks(Gtk.ApplicationWindow):
+    def __init__(self, app, aba_inicial=None):
+        super().__init__(application=app, title="VoidBR Enlightenment Tweaks")
+        self.set_default_size(720, 660)
+
+        prov = Gtk.CssProvider()
+        prov.load_from_data(CSS.encode("utf-8"))
+        Gtk.StyleContext.add_provider_for_display(self.get_display(), prov,
+                                                  Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+        self.css_fonte = Gtk.CssProvider()
+        Gtk.StyleContext.add_provider_for_display(self.get_display(), self.css_fonte,
+                                                  Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION + 1)
+        try:
+            self.escala_fonte = min(ESCALA_MAX, max(ESCALA_MIN,
+                                                    float(ler_prefs_app().get("font_scale", 1.0))))
+        except (TypeError, ValueError):
+            self.escala_fonte = 1.0
+
+        # --- cabeçalho: fonte à esquerda, menu à direita ---
+        cab = Gtk.HeaderBar()
+        cab.add_css_class("cabecalho-app")
+        self.set_titlebar(cab)
+        fonte = Gtk.Box()
+        fonte.add_css_class("linked")
+        self.b_menor = Gtk.Button(label="A−", tooltip_text="Diminuir a fonte (Ctrl -)")
+        self.b_escala = Gtk.Button(label="100%", tooltip_text="Tamanho normal (Ctrl 0)")
+        self.b_maior = Gtk.Button(label="A+", tooltip_text="Aumentar a fonte (Ctrl +)")
+        for b, passo in ((self.b_menor, -1), (self.b_escala, 0), (self.b_maior, 1)):
+            b.add_css_class("botao-fonte")
+            b.connect("clicked", lambda _b, p=passo: self.mudar_fonte(p))
+            fonte.append(b)
+        cab.pack_start(fonte)
+
+        menu = Gio.Menu()
+        menu.append("⚙️ Configurações do Enlightenment", "win.config_e")
+        menu.append("ℹ️ Sobre / Créditos", "win.sobre")
+        bmenu = Gtk.MenuButton(icon_name="open-menu-symbolic")
+        bmenu.set_menu_model(menu)
+        cab.pack_end(bmenu)
+        for nome, cb in (("sobre", self.ao_clicar_sobre),
+                         ("config_e", self.ao_abrir_config_e),
+                         ("fonte_mais", lambda *_: self.mudar_fonte(1)),
+                         ("fonte_menos", lambda *_: self.mudar_fonte(-1)),
+                         ("fonte_normal", lambda *_: self.mudar_fonte(0))):
+            acao = Gio.SimpleAction.new(nome, None)
+            acao.connect("activate", cb)
+            self.add_action(acao)
+        app.set_accels_for_action("win.fonte_mais", ["<Control>plus", "<Control>equal",
+                                                     "<Control>KP_Add"])
+        app.set_accels_for_action("win.fonte_menos", ["<Control>minus", "<Control>KP_Subtract"])
+        app.set_accels_for_action("win.fonte_normal", ["<Control>0", "<Control>KP_0"])
+        self.aplicar_fonte()
+
+        caixa = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
+        caixa.add_css_class("conteudo")
+        for lado in ("top", "bottom", "start", "end"):
+            getattr(caixa, f"set_margin_{lado}")(16)
+        self.set_child(caixa)
+
+        titulo = Gtk.Label(label="🛠️ VoidBR Enlightenment Tweaks", xalign=0)
+        titulo.add_css_class("titulo-app")
+        caixa.append(titulo)
+        sub = Gtk.Label(label="Barra em ilha, aparência, papel de parede, módulos e atalhos",
+                        xalign=0)
+        sub.add_css_class("subtitulo")
+        caixa.append(sub)
+
+        self.abas = Gtk.Notebook()
+        self.abas.set_vexpand(True)
+        self.indice_aba = {}
+        for chave, rotulo, fabrica in (("barra", "🧱 Barra", self._aba_barra),
+                                       ("aparencia", "🎨 Aparência", self._aba_aparencia),
+                                       ("papel", "🖼️ Papel de parede", self._aba_papel),
+                                       ("modulos", "🧩 Módulos e atalhos", self._aba_modulos)):
+            rolagem = Gtk.ScrolledWindow(hscrollbar_policy=Gtk.PolicyType.NEVER)
+            rolagem.set_child(fabrica())
+            self.indice_aba[chave] = self.abas.append_page(rolagem, Gtk.Label(label=rotulo))
+        caixa.append(self.abas)
+
+        st = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        st.add_css_class("caixa-status")
+        self.label_status = Gtk.Label(label="", xalign=0, wrap=True)
+        st.append(self.label_status)
+        caixa.append(st)
+
+        linha = Gtk.Box(spacing=8, halign=Gtk.Align.END)
+        b_e = Gtk.Button(label="🔵 Padrão Enlightenment")
+        b_e.add_css_class("botao-azul")
+        b_e.connect("clicked", lambda *_: self.mostrar(valores_enlightenment(), manter_atalhos=True))
+        b_voidbr = Gtk.Button(label="↩️ Padrão VoidBR")
+        b_voidbr.add_css_class("botao-laranja")
+        b_voidbr.connect("clicked", lambda *_: self.mostrar(valores_voidbr(), manter_atalhos=True))
+        self.b_aplicar = Gtk.Button(label="✅ Aplicar")
+        self.b_aplicar.add_css_class("botao-verde")
+        self.b_aplicar.connect("clicked", self.ao_clicar_aplicar)
+        for b in (b_e, b_voidbr, self.b_aplicar):
+            linha.append(b)
+        caixa.append(linha)
+
+        self.recarregar()
+        if aba_inicial in self.indice_aba:
+            self.abas.set_current_page(self.indice_aba[aba_inicial])
+
+    # ----- blocos de interface -----
+
+    def _grade(self, titulo=None):
+        g = Gtk.Grid(column_spacing=14, row_spacing=10)
+        for lado in ("top", "bottom", "start", "end"):
+            getattr(g, f"set_margin_{lado}")(14)
+        g._linha = 0
+        if titulo:
+            self._secao(g, titulo)
+        return g
+
+    def _secao(self, g, texto):
+        s = Gtk.Label(label=texto, xalign=0)
+        s.add_css_class("secao")
+        g.attach(s, 0, g._linha, 3, 1)
+        g._linha += 1
+
+    def _rotulo(self, g, texto, dica=None):
+        r = Gtk.Label(label=texto, xalign=0, hexpand=True)
+        r.add_css_class("rotulo-campo")
+        g.attach(r, 0, g._linha, 1, 1)
+        if dica:
+            d = Gtk.Label(label=dica, xalign=0, wrap=True)
+            d.add_css_class("dica")
+            g.attach(d, 0, g._linha + 1, 3, 1)
+
+    def _avanca(self, g, dica):
+        g._linha += 2 if dica else 1
+
+    def _chave(self, g, texto, dica=None):
+        self._rotulo(g, texto, dica)
+        sw = Gtk.Switch(halign=Gtk.Align.END, valign=Gtk.Align.CENTER)
+        g.attach(sw, 1, g._linha, 2, 1)
+        self._avanca(g, dica)
+        return sw
+
+    def _lista(self, g, texto, opcoes, dica=None):
+        self._rotulo(g, texto, dica)
+        dd = Gtk.DropDown.new_from_strings([r for _v, r in opcoes])
+        dd._opcoes = list(opcoes)
+        g.attach(dd, 1, g._linha, 2, 1)
+        self._avanca(g, dica)
+        return dd
+
+    def _escala(self, g, texto, minimo, maximo, passo=1, sufixo="", dica=None):
+        self._rotulo(g, texto, dica)
+        esc = Gtk.Scale.new_with_range(Gtk.Orientation.HORIZONTAL, minimo, maximo, passo)
+        esc.set_size_request(220, -1)
+        esc.set_draw_value(False)
+        val = Gtk.Label(xalign=1, width_chars=6)
+        esc.connect("value-changed", lambda e: val.set_text(f"{int(e.get_value())}{sufixo}"))
+        g.attach(esc, 1, g._linha, 1, 1)
+        g.attach(val, 2, g._linha, 1, 1)
+        self._avanca(g, dica)
+        return esc
+
+    def _aviso(self, g, texto):
+        a = Gtk.Label(label=texto, xalign=0, wrap=True)
+        a.add_css_class("aviso")
+        g.attach(a, 0, g._linha, 3, 1)
+        g._linha += 1
+
+    @staticmethod
+    def _valor_dd(dd):
+        i = dd.get_selected()
+        return dd._opcoes[i][0] if 0 <= i < len(dd._opcoes) else None
+
+    # ----- abas -----
+
+    def _aba_barra(self):
+        g = self._grade("Estilo")
+        self.w_estilo = self._lista(g, "Estilo da barra", ESTILOS,
+                                    "Ilha VoidBR: flutua 8 px acima da borda, com cantos arredondados "
+                                    "e fundo translúcido nas cores da paleta.")
+        self._secao(g, "Posição e tamanho")
+        self.w_posicao = self._lista(g, "Posição na tela", POSICOES)
+        self.w_tamanho = self._escala(g, "Altura", 32, 96, 2, " px",
+                                      "Na ilha, 8 px são o espaço transparente até a borda da tela.")
+        self.w_ajustar = self._chave(g, "Só do tamanho do conteúdo",
+                                     "Ligado: a barra fica centralizada, do tamanho dos ícones. "
+                                     "Desligado: ocupa a largura toda da tela.")
+        self.w_esconder = self._chave(g, "Esconder sozinha",
+                                      "A barra some e volta quando o mouse encosta na borda.")
+        return g
+
+    def _aba_aparencia(self):
+        g = self._grade("Cores e tema")
+        self.op_paleta = paletas()
+        self.w_paleta = self._lista(g, "Paleta de cores", self.op_paleta,
+                                    "Cores do Enlightenment, dos apps EFL (Terminology, Ephoto…) e da "
+                                    "barra em ilha.")
+        self.op_icones = temas_icones()
+        self.w_icones = self._lista(g, "Ícones", self.op_icones)
+        self.op_gtk = temas_gtk()
+        self.w_gtk = self._lista(g, "Tema GTK", self.op_gtk,
+                                 "Visual dos apps GTK (Firefox, Gparted, este app…), aplicado pelo E.")
+        self._secao(g, "Tamanho e desempenho")
+        self.w_escala = self._escala(g, "Escala da interface", 80, 200, 10, "%",
+                                     "Aumenta menus, barra e janelas do E (útil em telas de alta "
+                                     "resolução).")
+        self.w_vsync = self._chave(g, "Sincronizar com a tela (vsync)",
+                                   "Evita o efeito de 'rasgo' ao mover janelas.")
+        return g
+
+    def _aba_papel(self):
+        g = self._grade("Papel de parede")
+        self.op_papel = papeis()
+        self.w_papel = self._lista(g, "Imagem", self.op_papel,
+                                   f"Imagens de {PAPEL_PASTA} (voidbr-wallpapers). O E só usa .edj: "
+                                   "a imagem escolhida é convertida em ~/.e/e/backgrounds.")
+        botao = Gtk.Button(label="📂 Escolher outra imagem…", halign=Gtk.Align.START)
+        botao.connect("clicked", self.ao_escolher_imagem)
+        g.attach(botao, 0, g._linha, 3, 1)
+        g._linha += 1
+        self._aviso(g, "Vale para todas as áreas de trabalho e também para a tela de bloqueio.")
+        return g
+
+    def _aba_modulos(self):
+        g = self._grade("Módulos")
+        instalados = modulos_instalados()
+        self.w_mod = {}
+        for nome, titulo, dica in MODULOS:
+            if nome in instalados:
+                self.w_mod[nome] = self._chave(g, titulo, dica)
+        if not self.w_mod:
+            self._aviso(g, "Nenhum dos módulos conhecidos foi encontrado.")
+        self._secao(g, "Atalhos com a tecla Super")
+        self.g_atalhos = g
+        self.l_atalhos = []
+        return g
+
+    def _mostrar_atalhos(self, atalhos):
+        g = self.g_atalhos
+        for w in self.l_atalhos:
+            g.remove(w)
+        self.l_atalhos = []
+        linha = g._linha
+        for tecla, descr in atalhos:
+            t = Gtk.Label(label=tecla, xalign=0)
+            t.add_css_class("atalho")
+            d = Gtk.Label(label=descr, xalign=0, hexpand=True)
+            g.attach(t, 0, linha, 1, 1)
+            g.attach(d, 1, linha, 2, 1)
+            self.l_atalhos += [t, d]
+            linha += 1
+        nota = Gtk.Label(label="Para mudar atalhos: menu ☰ → Configurações do Enlightenment → "
+                               "Entrada → Atalhos de teclado.", xalign=0, wrap=True)
+        nota.add_css_class("dica")
+        g.attach(nota, 0, linha, 3, 1)
+        self.l_atalhos.append(nota)
+
+    # ----- valores <-> interface -----
+
+    def mostrar(self, v, manter_atalhos=False):
+        _escolha(self.w_estilo, ESTILOS, v["estilo"])
+        _escolha(self.w_posicao, POSICOES, v["posicao"])
+        self.w_tamanho.set_value(v["tamanho"])
+        self.w_ajustar.set_active(v["ajustar"])
+        self.w_esconder.set_active(v["esconder"])
+        _escolha(self.w_paleta, self.op_paleta, v["paleta"])
+        _escolha(self.w_icones, self.op_icones, v["icones"])
+        if v["gtk_tema"]:
+            _escolha(self.w_gtk, self.op_gtk, v["gtk_tema"])
+        self.w_escala.set_value(v["escala"])
+        self.w_vsync.set_active(v["vsync"])
+        if v["papel"]:
+            _escolha(self.w_papel, self.op_papel, v["papel"])
+        for m, sw in self.w_mod.items():
+            sw.set_active(v["modulos"].get(m, False))
+        if not manter_atalhos:
+            self._mostrar_atalhos(v.get("_atalhos", []))
+
+    def coletar(self):
+        v = {
+            "estilo": self._valor_dd(self.w_estilo),
+            "posicao": self._valor_dd(self.w_posicao),
+            "tamanho": int(self.w_tamanho.get_value()),
+            "ajustar": self.w_ajustar.get_active(),
+            "esconder": self.w_esconder.get_active(),
+            "paleta": self._valor_dd(self.w_paleta),
+            "icones": self._valor_dd(self.w_icones),
+            "gtk_tema": self._valor_dd(self.w_gtk) or self.antes["gtk_tema"],
+            "escala": int(self.w_escala.get_value()),
+            "vsync": self.w_vsync.get_active(),
+            "papel": self._valor_dd(self.w_papel) or self.antes["papel"],
+            "modulos": dict(self.antes["modulos"]),
+        }
+        v["modulos"].update({m: sw.get_active() for m, sw in self.w_mod.items()})
+        return v
+
+    def recarregar(self):
+        self.antes = valores_atuais()
+        self.mostrar(self.antes)
+        rodando = e_rodando()
+        self.status(f"✔ Perfil atual: {perfil_atual()}" +
+                    ("" if rodando else " — o Enlightenment não está rodando: as mudanças valem "
+                                        "no próximo login."))
+
+    def status(self, texto):
+        self.label_status.set_text(texto)
+        return False
+
+    # ----- botões -----
+
+    def ao_clicar_aplicar(self, *_):
+        v = self.coletar()
+        self.b_aplicar.set_sensitive(False)
+
+        def tarefa():
+            try:
+                feito = aplicar(v, self.antes, lambda t: GLib.idle_add(self.status, t))
+                GLib.idle_add(self._fim, feito, None)
+            except Exception as erro:  # noqa: BLE001 - mostra qualquer falha ao usuário
+                GLib.idle_add(self._fim, [], str(erro))
+        threading.Thread(target=tarefa, daemon=True).start()
+
+    def _fim(self, feito, erro):
+        self.b_aplicar.set_sensitive(True)
+        if erro:
+            self.status(f"⚠️ {erro}")
+        elif not feito:
+            self.status("ℹ️ Nada mudou.")
+        else:
+            self.status("✅ Aplicado: " + ", ".join(feito) + ". O Enlightenment reinicia para "
+                        "carregar (as janelas continuam abertas).")
+            GLib.timeout_add_seconds(6, self._recarregar_depois)
+        return False
+
+    def _recarregar_depois(self):
+        txt = self.label_status.get_text()
+        self.antes = valores_atuais()
+        self.status(txt)
+        return False
+
+    def ao_escolher_imagem(self, *_):
+        dlg = Gtk.FileDialog(title="Imagem do papel de parede", modal=True)
+        filtro = Gtk.FileFilter()
+        filtro.set_name("Imagens")
+        for ext in PAPEL_EXT:
+            filtro.add_pattern("*" + ext)
+            filtro.add_pattern("*" + ext.upper())
+        filtros = Gio.ListStore.new(Gtk.FileFilter)
+        filtros.append(filtro)
+        dlg.set_filters(filtros)
+        if os.path.isdir(PAPEL_PASTA):
+            dlg.set_initial_folder(Gio.File.new_for_path(PAPEL_PASTA))
+
+        def fim(d, res):
+            try:
+                arq = d.open_finish(res)
+            except GLib.Error:
+                return
+            caminho = arq.get_path()
+            if caminho:
+                _escolha(self.w_papel, self.op_papel, caminho)
+        dlg.open(self, None, fim)
+
+    def ao_abrir_config_e(self, *_):
+        self.status("ℹ️ Configurações do Enlightenment: clique na área de trabalho → "
+                    "Configurações → Painel de configurações.")
+
+    # ----- fonte do app -----
+
+    def aplicar_fonte(self):
+        nome = Gtk.Settings.get_default().props.gtk_font_name or ""
+        m = re.search(r"(\d+(?:\.\d+)?)\s*$", nome)
+        base = float(m.group(1)) if m else 11.0
+        s = self.escala_fonte
+        self.css_fonte.load_from_data((
+            f"window, window * {{ font-size: {base * s:.1f}pt; }}\n"
+            f".titulo-app {{ font-size: {20 * s:.0f}px; }}\n"
+            f".subtitulo {{ font-size: {12 * s:.0f}px; }}\n"
+            f".dica {{ font-size: {11 * s:.0f}px; }}\n").encode("utf-8"))
+        for w in Gtk.Window.list_toplevels():
+            w.queue_resize()
+        self.b_escala.set_label(f"{round(s * 100)}%")
+        self.b_menor.set_sensitive(s > ESCALA_MIN + 0.001)
+        self.b_maior.set_sensitive(s < ESCALA_MAX - 0.001)
+
+    def mudar_fonte(self, passo):
+        nova = 1.0 if passo == 0 else round(self.escala_fonte + 0.1 * passo, 2)
+        nova = min(ESCALA_MAX, max(ESCALA_MIN, nova))
+        if nova == self.escala_fonte and passo:
+            return
+        self.escala_fonte = nova
+        self.aplicar_fonte()
+        try:
+            gravar_prefs_app(font_scale=nova)
+        except OSError:
+            pass
+
+    def ao_clicar_sobre(self, *_):
+        sobre = Gtk.AboutDialog(transient_for=self, modal=True)
+        sobre.set_program_name("VoidBR Enlightenment Tweaks")
+        sobre.set_version(VERSAO)
+        sobre.set_comments("Ajustes do Enlightenment do VoidBR:\nbarra em ilha, aparência, papel "
+                           "de parede,\nmódulos e atalhos.")
+        sobre.set_authors(["Vilmar Catafesta <vcatafesta@gmail.com>"])
+        sobre.set_copyright("© 2026 Vilmar Catafesta")
+        sobre.set_website("https://voidbr.org")
+        sobre.set_website_label("voidbr.org")
+        sobre.set_license_type(Gtk.License.BSD)
+        sobre.set_logo_icon_name("preferences-desktop-theme")
+        sobre.present()
+
+
+class AppTweaks(Gtk.Application):
+    def __init__(self, aba=None):
+        super().__init__(application_id=APP_ID,
+                         flags=getattr(Gio.ApplicationFlags, "DEFAULT_FLAGS",
+                                       Gio.ApplicationFlags.FLAGS_NONE))
+        self.aba = aba
+
+    def do_activate(self):
+        janela = self.props.active_window or JanelaTweaks(self, self.aba)
+        janela.present()
+
+
+def main():
+    args = sys.argv[1:]
+    if "--version" in args:
+        print(f"voidbr-enlightenment-tweaks {VERSAO}")
+        return 0
+    if "--help" in args or "-h" in args:
+        print("Uso: voidbr-enlightenment-tweaks [--aba barra|aparencia|papel|modulos]\n"
+              "                                   [--padrao-voidbr | --padrao-enlightenment]")
+        return 0
+    if not shutil.which("eet"):
+        print("eet não encontrado (pacote efl).", file=sys.stderr)
+        return 1
+    if "--padrao-voidbr" in args or "--padrao-enlightenment" in args:
+        novo = valores_voidbr() if "--padrao-voidbr" in args else valores_enlightenment()
+        feito = aplicar(novo, valores_atuais(), print)
+        print("Aplicado: " + (", ".join(feito) if feito else "nada mudou"))
+        return 0
+    aba = None
+    if "--aba" in args:
+        i = args.index("--aba")
+        aba = args[i + 1] if i + 1 < len(args) else None
+    return AppTweaks(aba).run([sys.argv[0]])
+
+
+if __name__ == "__main__":
+    sys.exit(main())
