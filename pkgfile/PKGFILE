@@ -58,6 +58,12 @@ post_install() {
     return 0
   fi
 
+  # acpid já ativo: reinicia para ler o /etc/sv/acpid/conf (só repassar eventos ao E)
+  if [ -L /var/service/acpid ]; then
+    log "Reiniciando o acpid"
+    sv restart acpid >/dev/null 2>&1 || true
+  fi
+
   # Cópia do skel (/etc/skel) para o usuário que está instalando/atualizando
   [ -n "${user:-}" ] || return 0
   if [ ! -x /usr/local/bin/voidbr-copy-skel-inc ]; then

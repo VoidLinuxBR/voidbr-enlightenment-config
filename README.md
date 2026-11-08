@@ -14,6 +14,8 @@ Configuração padrão do **Enlightenment** no VoidBR Linux.
 | `/etc/skel/.elementary/config/` | Tema `default` + paleta `voidbr` + ícones Tokyonight-Dark-Icons |
 | `/etc/skel/.config/conky/conky.conf` | Conky com as cores VoidBR |
 | `/etc/xdg/autostart/` + `/usr/bin/start-install-void` | Pastas do usuário e atalho do instalador no live |
+| `/etc/sv/acpid/conf` + `/etc/acpi/voidbr-enlightenment/` | acpid só repassa os eventos ACPI para o E (sem rodar o `handler.sh`) |
+| `/etc/elogind/logind.conf.d/60-voidbr-enlightenment.conf` | elogind ignora botão de energia, suspender e tampa (quem age é o E) |
 
 ## Estrutura
 

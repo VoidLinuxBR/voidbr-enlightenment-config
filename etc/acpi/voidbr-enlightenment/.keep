@@ -1,0 +1,2 @@
+# Pasta de regras do acpid vazia de propósito (ver /etc/sv/acpid/conf).
+# O acpid ignora arquivos que começam com ponto.

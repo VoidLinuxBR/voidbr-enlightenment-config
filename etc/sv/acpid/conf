@@ -1,0 +1,5 @@
+# VoidBR Enlightenment: o acpid só repassa os eventos ACPI para o Enlightenment
+# (socket /run/acpid.socket), sem rodar o /etc/acpi/handler.sh.
+# Quem decide o que fazer com botão de energia, tampa e teclas é o E
+# (Configurações > Atalhos > Atalhos ACPI).
+OPTS="-l -c /etc/acpi/voidbr-enlightenment"
