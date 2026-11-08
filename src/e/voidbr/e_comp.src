@@ -231,7 +231,7 @@ group "Comp_Config" struct {
     value "indirect" uchar: 0;
     value "texture_from_pixmap" uchar: 1;
     value "grab" uchar: 0;
-    value "vsync" uchar: 0;
+    value "vsync" uchar: 1;
     value "no_dither" uchar: 0;
     value "swap_mode" uchar: 0;
     value "send_flush" uchar: 1;

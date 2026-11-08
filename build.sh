@@ -11,6 +11,8 @@
 #     etc/skel/.e/e/config/                         perfil voidbr já ativo para novos usuários
 #     usr/share/elementary/config/voidbr/           perfil voidbr do Elementary
 #     etc/skel/.elementary/config/{voidbr,standard} tema flat + paleta voidbr + ícones Tokyonight
+#     usr/share/terminology/colorschemes/           esquema "VoidBR Tokyo Night" do Terminology
+#     etc/skel/.config/terminology/                 Terminology usando esse esquema
 #
 # Requer (só na máquina de quem regenera): efl (eet, edje_cc) e voidbr-wallpapers.
 # Para editar uma config: altere o .src correspondente e reconstrua o pacote.
@@ -111,9 +113,18 @@ else
 	warn "${wallpaper} não encontrado (voidbr-wallpapers) - o E usará o fundo padrão do tema"
 fi
 
+# 5. terminology: esquema de cores "VoidBR Tokyo Night" e config padrão que o usa
+#    (a config vai com version 2 de propósito: o Terminology completa o resto, como os
+#    atalhos padrão, pelo próprio caminho de atualização da config)
+msg "Terminology (esquema VoidBR Tokyo Night)"
+eet_compile "${destdir}/usr/share/terminology/colorschemes/VoidBR Tokyo Night.eet" \
+	"VoidBR Tokyo Night" "${srcdir}/terminology/voidbr-tokyo-night.src"
+eet_compile "${destdir}/etc/skel/.config/terminology/config/standard/base.cfg" \
+	config "${srcdir}/terminology/base.src"
+
 # eet e edje_cc criam arquivos com modo 0600; os usuários precisam ler
 for dir in usr/share/enlightenment/data/config/${profile} usr/share/elementary/colors usr/share/elementary/config/${profile} \
-	usr/share/voidbr-enlightenment etc/skel/.e etc/skel/.elementary; do
+	usr/share/voidbr-enlightenment usr/share/terminology etc/skel/.e etc/skel/.elementary etc/skel/.config/terminology; do
 	[[ -d "${destdir}/${dir}" ]] && chmod -R u=rwX,go=rX "${destdir}/${dir}"
 done
 

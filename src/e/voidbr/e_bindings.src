@@ -912,6 +912,136 @@ group "E_Config_Bindings" struct {
             value "action" string: "backlight";
             value "any_mod" uchar: 0;
         }
+        group "E_Config_Binding_Key" struct {
+            value "context" int: 9;
+            value "modifiers" int: 8;
+            value "key" string: "space";
+            value "action" string: "everything";
+            value "any_mod" uchar: 0;
+        }
+        group "E_Config_Binding_Key" struct {
+            value "context" int: 9;
+            value "modifiers" int: 8;
+            value "key" string: "a";
+            value "action" string: "menu_show";
+            value "params" string: "main";
+            value "any_mod" uchar: 0;
+        }
+        group "E_Config_Binding_Key" struct {
+            value "context" int: 9;
+            value "modifiers" int: 8;
+            value "key" string: "e";
+            value "action" string: "fileman";
+            value "params" string: "~/";
+            value "any_mod" uchar: 0;
+        }
+        group "E_Config_Binding_Key" struct {
+            value "context" int: 9;
+            value "modifiers" int: 8;
+            value "key" string: "t";
+            value "action" string: "exec";
+            value "params" string: "terminology";
+            value "any_mod" uchar: 0;
+        }
+        group "E_Config_Binding_Key" struct {
+            value "context" int: 9;
+            value "modifiers" int: 8;
+            value "key" string: "l";
+            value "action" string: "desk_lock";
+            value "any_mod" uchar: 0;
+        }
+        group "E_Config_Binding_Key" struct {
+            value "context" int: 9;
+            value "modifiers" int: 8;
+            value "key" string: "d";
+            value "action" string: "desk_deskshow_toggle";
+            value "any_mod" uchar: 0;
+        }
+        group "E_Config_Binding_Key" struct {
+            value "context" int: 9;
+            value "modifiers" int: 8;
+            value "key" string: "q";
+            value "action" string: "window_close";
+            value "any_mod" uchar: 0;
+        }
+        group "E_Config_Binding_Key" struct {
+            value "context" int: 9;
+            value "modifiers" int: 8;
+            value "key" string: "Up";
+            value "action" string: "window_maximized_toggle";
+            value "any_mod" uchar: 0;
+        }
+        group "E_Config_Binding_Key" struct {
+            value "context" int: 9;
+            value "modifiers" int: 8;
+            value "key" string: "Down";
+            value "action" string: "window_iconic_toggle";
+            value "any_mod" uchar: 0;
+        }
+        group "E_Config_Binding_Key" struct {
+            value "context" int: 9;
+            value "modifiers" int: 8;
+            value "key" string: "1";
+            value "action" string: "desk_linear_flip_to";
+            value "params" string: "0";
+            value "any_mod" uchar: 0;
+        }
+        group "E_Config_Binding_Key" struct {
+            value "context" int: 9;
+            value "modifiers" int: 8;
+            value "key" string: "2";
+            value "action" string: "desk_linear_flip_to";
+            value "params" string: "1";
+            value "any_mod" uchar: 0;
+        }
+        group "E_Config_Binding_Key" struct {
+            value "context" int: 9;
+            value "modifiers" int: 8;
+            value "key" string: "3";
+            value "action" string: "desk_linear_flip_to";
+            value "params" string: "2";
+            value "any_mod" uchar: 0;
+        }
+        group "E_Config_Binding_Key" struct {
+            value "context" int: 9;
+            value "modifiers" int: 8;
+            value "key" string: "4";
+            value "action" string: "desk_linear_flip_to";
+            value "params" string: "3";
+            value "any_mod" uchar: 0;
+        }
+        group "E_Config_Binding_Key" struct {
+            value "context" int: 9;
+            value "modifiers" int: 9;
+            value "key" string: "1";
+            value "action" string: "window_desk_move_to";
+            value "params" string: "0 0";
+            value "any_mod" uchar: 0;
+        }
+        group "E_Config_Binding_Key" struct {
+            value "context" int: 9;
+            value "modifiers" int: 9;
+            value "key" string: "2";
+            value "action" string: "window_desk_move_to";
+            value "params" string: "1 0";
+            value "any_mod" uchar: 0;
+        }
+        group "E_Config_Binding_Key" struct {
+            value "context" int: 9;
+            value "modifiers" int: 9;
+            value "key" string: "3";
+            value "action" string: "window_desk_move_to";
+            value "params" string: "2 0";
+            value "any_mod" uchar: 0;
+        }
+        group "E_Config_Binding_Key" struct {
+            value "context" int: 9;
+            value "modifiers" int: 9;
+            value "key" string: "4";
+            value "action" string: "window_desk_move_to";
+            value "params" string: "3 0";
+            value "any_mod" uchar: 0;
+        }
     }
     group "mouse_bindings" list {
         group "E_Config_Binding_Mouse" struct {
