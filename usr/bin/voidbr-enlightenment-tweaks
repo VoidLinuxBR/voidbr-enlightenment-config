@@ -643,6 +643,39 @@ def perfil_gravar(nome):
         os.remove(tmp.name)
 
 
+def padrao_brasil(e_dir):
+    """Teclado ABNT2 (layout br) e relógio de 24 horas, como no perfil VoidBR.
+
+    O "standard" do Enlightenment vem com teclado americano e relógio de 12 h;
+    o resto dele fica como o E original.
+    """
+    vb_dir = os.path.join(SYS_E_CFG, PERFIL_VOIDBR)
+    e_cfg = os.path.join(e_dir, "e.cfg")
+    e = eet_ler(e_cfg)
+    vb = eet_ler(os.path.join(vb_dir, "e.cfg"))
+    for cab in (r'^    group "xkb.used_layouts" list \{', r'^    group "xkb.current_layout" struct \{'):
+        novo = _bloco(vb, cab)
+        if not novo:
+            continue
+        bloco = vb[novo[0]:novo[1]]
+        velho = _bloco(e, cab)
+        if velho:
+            e = e[:velho[0]] + bloco + e[velho[1]:]
+        else:  # entra antes do "}" que fecha a config
+            i = e.rstrip().rfind("}")
+            e = e[:i] + bloco + e[i:]
+    e = topo_gravar(e, "xkb.selected_layout", "string", "br")
+    e = topo_gravar(e, "xkb.cur_layout", "string", "br")
+    eet_gravar(e_cfg, e)
+    os.chmod(e_cfg, 0o644)
+
+    # relógio: o gadget tem o mesmo id ("clock") nos dois perfis
+    relogio = os.path.join(vb_dir, "module.clock.cfg")
+    if os.path.isfile(relogio):
+        shutil.copy2(relogio, os.path.join(e_dir, "module.clock.cfg"))
+        os.chmod(os.path.join(e_dir, "module.clock.cfg"), 0o644)
+
+
 def restaurar(base, progresso=lambda _t: None):
     """Troca para uma cópia nova do perfil do sistema "base" (voidbr ou standard).
 
@@ -658,8 +691,12 @@ def restaurar(base, progresso=lambda _t: None):
         sys_elm = os.path.join(SYS_ELM_CFG, "standard")
 
     rodando = e_rodando()
-    # sem o msgbus não dá para trocar de perfil agora: fica para o próximo login
-    troca_agora = rodando and e_dbus("Profile", "Get", tipo="(s)") is not None
+    # com o E rodando, a troca só dá pelo msgbus: gravar o profile.cfg não adianta,
+    # porque o E grava o perfil em uso por cima ao sair
+    if rodando and e_dbus("Profile", "Get", tipo="(s)") is None:
+        raise RuntimeError("o módulo \"msgbus\" do Enlightenment está desligado. Ligue em "
+                           "Configurações → Módulos → Sistema → Message Bus e tente de novo.")
+    troca_agora = rodando
     atual = perfil_atual()
     destino = base + "-alt" if (rodando and atual == base) else base
 
@@ -679,6 +716,8 @@ def restaurar(base, progresso=lambda _t: None):
     e_cfg = os.path.join(e_dir, "e.cfg")
     eet_gravar(e_cfg, modulos_gravar(eet_ler(e_cfg), "msgbus", True))
     os.chmod(e_cfg, 0o644)
+    if base == PERFIL_E:
+        padrao_brasil(e_dir)
 
     if troca_agora:
         progresso("🔄 Reiniciando o Enlightenment…")
@@ -1175,9 +1214,7 @@ class JanelaTweaks(Gtk.ApplicationWindow):
             self.status(f"✅ Perfil \"{destino}\" restaurado. O Enlightenment está reiniciando.")
             GLib.timeout_add_seconds(6, self._recarregar_tudo)
         else:
-            self.status(f"✅ Perfil \"{destino}\" restaurado. Saia da sessão e entre de novo "
-                        "para carregar (o módulo msgbus, que troca o perfil na hora, está "
-                        "desligado).")
+            self.status(f"✅ Perfil \"{destino}\" restaurado; vale no próximo login.")
         return False
 
     def _recarregar_tudo(self):
@@ -1301,7 +1338,7 @@ def main():
     if "--padrao-voidbr" in args or "--padrao-enlightenment" in args:
         destino, agora = restaurar(PERFIL_VOIDBR if "--padrao-voidbr" in args else PERFIL_E, print)
         print(f"Perfil restaurado: {destino}" +
-              ("" if agora else " (vale no próximo login: o msgbus está desligado)"))
+              ("" if agora else " (vale no próximo login)"))
         return 0
     aba = None
     if "--aba" in args:
