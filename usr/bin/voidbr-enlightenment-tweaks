@@ -309,15 +309,22 @@ def _remover_bloco(txt, cabecalho):
     return txt if not b else txt[:b[0]] + txt[b[1]:]
 
 
-def _shelf(txt):
+def _shelf(txt, n=0):
+    """n-ésima barra do perfil: 0 = barra do topo, 1 = dock (perfil VoidBR)."""
     lista = _bloco(txt, r'^    group "shelves" list \{')
     if not lista:
         return None
-    return _bloco(txt, r'^        group "E_Config_Shelf" struct \{', lista[0])
+    ini = lista[0]
+    for _ in range(n + 1):
+        b = _bloco(txt, r'^        group "E_Config_Shelf" struct \{', ini)
+        if not b or b[0] >= lista[1]:
+            return None
+        ini = b[1]
+    return b
 
 
-def shelf_ler(txt):
-    b = _shelf(txt)
+def shelf_ler(txt, n=0):
+    b = _shelf(txt, n)
     if not b:
         return {}
     s = txt[b[0]:b[1]]
@@ -330,14 +337,16 @@ def shelf_ler(txt):
             "esconder": bool(val("autohide", 0))}
 
 
-def shelf_gravar(txt, d):
-    b = _shelf(txt)
+def shelf_gravar(txt, d, n=0):
+    """Grava na n-ésima barra só as chaves presentes em d."""
+    b = _shelf(txt, n)
     if not b:
         return txt
     s = txt[b[0]:b[1]]
-    for chave, tipo, v in (("style", "string", d["estilo"]), ("orient", "int", d["posicao"]),
-                           ("size", "int", d["tamanho"]), ("fit_along", "uchar", int(d["ajustar"])),
-                           ("autohide", "int", int(d["esconder"]))):
+    campos = (("estilo", "style", "string", str), ("posicao", "orient", "int", int),
+              ("tamanho", "size", "int", int), ("ajustar", "fit_along", "uchar", int),
+              ("esconder", "autohide", "int", int))
+    for chave, tipo, v in ((k_e, t, conv(d[k])) for k, k_e, t, conv in campos if k in d):
         linha = f'            value "{chave}" {tipo}: {_formatar(tipo, v)};'
         pad = re.compile(r'^            value "%s" \w+: .*;$' % chave, re.M)
         if pad.search(s):
@@ -587,7 +596,11 @@ def valores_de(e_cfg, e_comp, elm_cfg):
     elm = eet_ler(elm_cfg)
     comp = eet_ler(e_comp)
     sh = shelf_ler(e)
+    dock = shelf_ler(e, 1)
     v = {
+        "dock_tamanho": dock.get("tamanho", 58),
+        "dock_esconder": dock.get("esconder", False),
+        "_tem_dock": bool(dock),
         "estilo": sh.get("estilo", "default"),
         "posicao": sh.get("posicao", 6),
         "tamanho": sh.get("tamanho", 40),
@@ -635,7 +648,8 @@ def valores_enlightenment():
 NOMES = {"estilo": "estilo da barra", "posicao": "posição da barra", "tamanho": "tamanho da barra",
          "ajustar": "largura da barra", "esconder": "esconder a barra", "paleta": "paleta",
          "icones": "ícones", "gtk_tema": "tema GTK", "escala": "escala", "papel": "papel de parede",
-         "vsync": "vsync", "modulos": "módulos"}
+         "vsync": "vsync", "modulos": "módulos", "dock_tamanho": "tamanho do dock",
+         "dock_esconder": "esconder o dock"}
 
 
 def aplicar(v, antes, progresso=lambda _t: None):
@@ -680,7 +694,8 @@ def aplicar(v, antes, progresso=lambda _t: None):
     progresso("✍️ Gravando a configuração…")
     e_cfg = os.path.join(e_dir, "e.cfg")
     e = eet_ler(e_cfg)
-    e = shelf_gravar(e, v)
+    e = shelf_gravar(e, {k: v[k] for k in ("estilo", "posicao", "tamanho", "ajustar", "esconder")})
+    e = shelf_gravar(e, {"tamanho": v["dock_tamanho"], "esconder": v["dock_esconder"]}, 1)
     e = topo_gravar(e, "icon_theme", "string", v["icones"])
     e = topo_gravar(e, "icon_theme_overrides", "uchar", 1)
     if v["gtk_tema"]:
@@ -925,6 +940,11 @@ class JanelaTweaks(Gtk.ApplicationWindow):
                                      "Desligado: ocupa a largura toda da tela.")
         self.w_esconder = self._chave(g, "Esconder sozinha",
                                       "A barra some e volta quando o mouse encosta na borda.")
+        self._secao(g, "Dock (aplicativos, embaixo)")
+        self.w_dock_tamanho = self._escala(g, "Altura do dock", 40, 96, 2, " px",
+                                           "Os ícones crescem junto; 8 px são o espaço até a borda.")
+        self.w_dock_esconder = self._chave(g, "Esconder o dock sozinho",
+                                           "O dock some e volta quando o mouse encosta embaixo.")
         return g
 
     def _aba_aparencia(self):
@@ -1001,6 +1021,11 @@ class JanelaTweaks(Gtk.ApplicationWindow):
         self.w_tamanho.set_value(v["tamanho"])
         self.w_ajustar.set_active(v["ajustar"])
         self.w_esconder.set_active(v["esconder"])
+        self.w_dock_tamanho.set_value(v["dock_tamanho"])
+        self.w_dock_esconder.set_active(v["dock_esconder"])
+        # perfil sem dock (configuração antiga): nada a ajustar até restaurar o padrão VoidBR
+        for w in (self.w_dock_tamanho, self.w_dock_esconder):
+            w.set_sensitive(v.get("_tem_dock", False))
         _escolha(self.w_paleta, self.op_paleta, v["paleta"])
         _escolha(self.w_icones, self.op_icones, v["icones"])
         if v["gtk_tema"]:
@@ -1021,6 +1046,9 @@ class JanelaTweaks(Gtk.ApplicationWindow):
             "tamanho": int(self.w_tamanho.get_value()),
             "ajustar": self.w_ajustar.get_active(),
             "esconder": self.w_esconder.get_active(),
+            "dock_tamanho": int(self.w_dock_tamanho.get_value()),
+            "dock_esconder": self.w_dock_esconder.get_active(),
+            "_tem_dock": self.antes.get("_tem_dock", False),
             "paleta": self._valor_dd(self.w_paleta),
             "icones": self._valor_dd(self.w_icones),
             "gtk_tema": self._valor_dd(self.w_gtk) or self.antes["gtk_tema"],

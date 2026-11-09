@@ -1,0 +1,277 @@
+/*
+ * Tela de bloqueio VoidBR: escurece o papel de parede, relógio grande com a
+ * data por extenso e um cartão central com o campo de senha.
+ *
+ * O E centraliza o login_box na tela com o tamanho mínimo dele, por isso o
+ * grupo é alto (relógio em cima, cartão embaixo) e o escurecimento sai para
+ * fora da caixa até cobrir a tela.
+ */
+   group { name: "e/desklock/login_box";
+      script {
+         public tick;
+         public atualiza() {
+            new y, m, d, yd, wd, hr, mi;
+            new Float:s;
+            new buf[64], dia[32], mes[32];
+            /* no date() do Embryo a semana começa na segunda (0) */
+            date(y, m, d, yd, wd, hr, mi, s);
+            if (hr < 10) {
+               if (mi < 10) snprintf(buf, sizeof(buf), "0%i:0%i", hr, mi);
+               else snprintf(buf, sizeof(buf), "0%i:%i", hr, mi);
+            } else {
+               if (mi < 10) snprintf(buf, sizeof(buf), "%i:0%i", hr, mi);
+               else snprintf(buf, sizeof(buf), "%i:%i", hr, mi);
+            }
+            set_text(PART:"clock", buf);
+            if (wd == 0) snprintf(dia, sizeof(dia), "segunda-feira");
+            else if (wd == 1) snprintf(dia, sizeof(dia), "terça-feira");
+            else if (wd == 2) snprintf(dia, sizeof(dia), "quarta-feira");
+            else if (wd == 3) snprintf(dia, sizeof(dia), "quinta-feira");
+            else if (wd == 4) snprintf(dia, sizeof(dia), "sexta-feira");
+            else if (wd == 5) snprintf(dia, sizeof(dia), "sábado");
+            else if (wd == 6) snprintf(dia, sizeof(dia), "domingo");
+            if (m == 1) snprintf(mes, sizeof(mes), "janeiro");
+            else if (m == 2) snprintf(mes, sizeof(mes), "fevereiro");
+            else if (m == 3) snprintf(mes, sizeof(mes), "março");
+            else if (m == 4) snprintf(mes, sizeof(mes), "abril");
+            else if (m == 5) snprintf(mes, sizeof(mes), "maio");
+            else if (m == 6) snprintf(mes, sizeof(mes), "junho");
+            else if (m == 7) snprintf(mes, sizeof(mes), "julho");
+            else if (m == 8) snprintf(mes, sizeof(mes), "agosto");
+            else if (m == 9) snprintf(mes, sizeof(mes), "setembro");
+            else if (m == 10) snprintf(mes, sizeof(mes), "outubro");
+            else if (m == 11) snprintf(mes, sizeof(mes), "novembro");
+            else if (m == 12) snprintf(mes, sizeof(mes), "dezembro");
+            snprintf(buf, sizeof(buf), "%s, %i de %s", dia, d, mes);
+            set_text(PART:"date", buf);
+            set_int(tick, timer(60.5 - s, "relogio", 0));
+         }
+         public relogio(val) {
+            atualiza();
+         }
+      }
+      parts {
+         text { "clock"; nomouse;
+            scale: 1;
+            desc { "default";
+               rel1.to: "card_area"; rel1.relative: 0.0 0.0; rel1.offset: -200 -230;
+               rel2.to: "card_area"; rel2.relative: 1.0 0.0; rel2.offset: 199 -80;
+               color_class: "/voidbr/lock/fg";
+               text { font: "Sans:style=Light"; size: 110;
+                  text: "00:00";
+                  align: 0.5 0.5;
+               }
+            }
+         }
+         text { "date"; nomouse;
+            scale: 1;
+            desc { "default";
+               rel1.to: "card_area"; rel1.relative: 0.0 0.0; rel1.offset: -200 -82;
+               rel2.to: "card_area"; rel2.relative: 1.0 0.0; rel2.offset: 199 -46;
+               color_class: "/voidbr/lock/fg/dim";
+               text { font: "Sans"; size: 17;
+                  text: "-";
+                  align: 0.5 0.5;
+               }
+            }
+         }
+         /* cartão */
+         spacer { "card_area";
+            scale: 1;
+            desc { "default";
+               rel1.relative: 0.5 0.5;
+               rel2.relative: 0.5 0.5;
+               align: 0.5 0.5;
+               min: 380 250; max: 380 250;
+               fixed: 1 1;
+            }
+         }
+         image { "card"; nomouse;
+            desc { "default";
+               rel.to: "card_area";
+               image.normal: "win_round.png";
+               image.border: 12 12 12 12;
+               image.border_scale: 1;
+               image.border_scale_by: 1.5;
+               color_class: "/voidbr/lock/card";
+            }
+         }
+         image { "card_line"; nomouse;
+            desc { "default";
+               rel.to: "card_area";
+               image.normal: "win_line.png";
+               image.border: 12 12 12 12;
+               image.border_scale: 1;
+               image.border_scale_by: 1.5;
+               image.middle: NONE;
+               color_class: "/voidbr/card/line";
+            }
+         }
+         image { "avatar"; nomouse;
+            scale: 1;
+            desc { "default";
+               rel.to: "card_area";
+               rel1.relative: 0.5 0.0; rel1.offset: 0 26;
+               rel2.relative: 0.5 0.0; rel2.offset: 0 26;
+               align: 0.5 0.0;
+               min: 64 64; max: 64 64;
+               fixed: 1 1;
+               image.normal: "win_btn.png";
+               color_class: "/voidbr/accent";
+            }
+         }
+         image { "avatar_v"; nomouse;
+            desc { "default";
+               rel.to: "avatar";
+               rel1.relative: 0.2 0.2; rel2.relative: 0.8 0.8;
+               image.normal: "start_v.png";
+               color_class: "/voidbr/accent/fg";
+            }
+         }
+         text { "e.text.title"; nomouse;
+            scale: 1;
+            desc { "default";
+               rel.to_x: "card_area";
+               rel1.to_y: "avatar"; rel1.relative: 0.0 1.0; rel1.offset: 20 14;
+               rel2.to_y: "avatar"; rel2.relative: 1.0 1.0; rel2.offset: -21 34;
+               color_class: "/voidbr/lock/fg/dim";
+               text { font: "Sans"; size: 11;
+                  text_class: "desklock_title";
+                  align: 0.5 0.5;
+                  ellipsis: -1;
+               }
+            }
+         }
+         /* campo de senha */
+         image { "field"; nomouse;
+            scale: 1;
+            desc { "default";
+               rel.to_x: "card_area";
+               rel1.to_y: "e.text.title"; rel1.relative: 0.0 1.0; rel1.offset: 28 12;
+               rel2.to_y: "e.text.title"; rel2.relative: 1.0 1.0; rel2.offset: -29 56;
+               image.normal: "win_round.png";
+               image.border: 12 12 12 12;
+               image.border_scale: 1;
+               image.border_scale_by: 0.9;
+               color_class: "/voidbr/lock/field";
+            }
+         }
+         image { "field_line"; nomouse;
+            desc { "default";
+               rel.to: "field";
+               image.normal: "win_line.png";
+               image.border: 12 12 12 12;
+               image.border_scale: 1;
+               image.border_scale_by: 0.9;
+               image.middle: NONE;
+               color_class: "/voidbr/lock/field/line";
+            }
+            desc { "active"; inherit: "default";
+               color_class: "/voidbr/accent";
+            }
+         }
+         rect { "clipper"; nomouse;
+            desc { "default";
+               rel.to: "field";
+               rel1.offset: 14 0;
+               rel2.offset: -15 -1;
+            }
+         }
+         rect { "selection"; nomouse;
+            desc { "default";
+               rel.to: "e.text.password";
+               color_class: "/voidbr/lock/selection";
+               hid;
+            }
+            desc { "active"; inherit: "default"; vis; }
+         }
+         text { "e.text.password"; nomouse;
+            scale: 1;
+            clip_to: "clipper";
+            desc { "default";
+               rel1.to: "clipper"; rel1.relative: 0.0 0.5;
+               rel2.to: "clipper"; rel2.relative: 0.0 0.5;
+               align: 0.0 0.5;
+               fixed: 1 1;
+               color_class: "/voidbr/lock/fg";
+               text { font: "Sans"; size: 14;
+                  min: 1 1;
+                  align: 0.0 0.5;
+                  text_class: "desklock_passwd";
+                  ellipsis: -1;
+               }
+            }
+         }
+         rect { "cursor"; nomouse;
+            scale: 1;
+            clip_to: "clipper";
+            desc { "default";
+               rel.to: "e.text.password";
+               rel1.relative: 1.0 0.0; rel1.offset: 2 -2;
+               rel2.offset: 3 1;
+               min: 2 18;
+               fixed: 1 1;
+               color_class: "/voidbr/accent";
+               hid;
+            }
+            desc { "visible"; inherit: "default"; vis; }
+         }
+         text { "e.text.hint"; nomouse;
+            scale: 1;
+            desc { "default";
+               rel.to_x: "card_area";
+               rel1.to_y: "field"; rel1.relative: 0.0 1.0; rel1.offset: 20 6;
+               rel2.to_y: "field"; rel2.relative: 1.0 1.0; rel2.offset: -21 26;
+               color_class: "/voidbr/lock/hint";
+               text { font: "Sans:style=Bold"; size: 10;
+                  text_class: "desklock_hint";
+                  align: 0.5 0.5;
+                  ellipsis: -1;
+               }
+            }
+         }
+      }
+      programs {
+         program { signal: "show"; source: "";
+            script { atualiza(); }
+         }
+         program { name: "cursor_show";
+            signal: "show"; source: "";
+            action: STATE_SET "visible" 0.0;
+            target: "cursor";
+            after: "cursor_show_timer";
+         }
+         program { name: "cursor_show_timer";
+            in: 0.5 0.0;
+            after: "cursor_hide";
+         }
+         program { name: "cursor_hide";
+            action: STATE_SET "default" 0.0;
+            target: "cursor";
+            after: "cursor_hide_timer";
+         }
+         program { name: "cursor_hide_timer";
+            in: 0.5 0.0;
+            after: "cursor_show";
+         }
+         program { signal: "e,state,selected"; source: "e";
+            action: STATE_SET "active" 0.0;
+            target: "selection";
+         }
+         program { signal: "e,state,unselected"; source: "e";
+            action: STATE_SET "default" 0.0;
+            target: "selection";
+         }
+         program { signal: "e,state,checking"; source: "e";
+            action: STATE_SET "active" 0.0;
+            target: "field_line";
+         }
+         program { signal: "e,state,invalid"; source: "e";
+            action: STATE_SET "default" 0.0;
+            target: "field_line";
+         }
+         program { signal: "e,action,hide"; source: "e";
+            action: SIGNAL_EMIT "e,state,invalid" "e";
+         }
+      }
+   }

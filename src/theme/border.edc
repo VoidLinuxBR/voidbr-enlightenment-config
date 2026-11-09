@@ -1,0 +1,341 @@
+/*
+ * Borda das janelas VoidBR: barra de título fina na mesma cor do fundo,
+ * título centralizado, botões redondos à direita (minimizar, maximizar,
+ * fechar), cantos arredondados e sombra suave.
+ *
+ * Os cantos são uma máscara: tudo (inclusive o conteúdo do programa) é
+ * recortado pela imagem win_round.png.
+ */
+
+/* TITLE: altura da barra; BTN: diâmetro dos botões; RAD: borda das imagens */
+#define TITLE 34
+#define BTN 13
+#define BTNGAP 9
+
+   group { name: "e/widgets/border/default/border";
+      alias: "e/widgets/border/shaped/border";
+      alias: "e/widgets/border/dialog/border";
+      alias: "e/widgets/border/noresize/border";
+      alias: "e/widgets/border/noresize_dialog/border";
+      data.item: "shadow" "1";
+      parts {
+         /* sombra, fora da janela */
+         image { "shadow"; nomouse;
+            desc { "default";
+               rel1.to: "base"; rel1.offset: -28 -20;
+               rel2.to: "base"; rel2.offset: 27 35;
+               image.normal: "win_shadow.png";
+               image.border: 60 60 60 60;
+               image.middle: SOLID;
+               color_class: "/voidbr/win/shadow";
+            }
+            desc { "focused"; inherit: "default";
+               color_class: "/voidbr/win/shadow/focused";
+            }
+            desc { "hidden"; inherit: "default"; hid; }
+         }
+         spacer { "base";
+            desc { "default"; }
+            desc { "shaded"; inherit: "default";
+               rel2.to_y: "top"; rel2.relative: 1.0 1.0;
+            }
+         }
+         /* máscara dos cantos arredondados */
+         image { "mask"; nomouse;
+            desc { "default";
+               rel.to: "base";
+               image.normal: "win_round.png";
+               image.border: 12 12 12 12;
+               image.border_scale: 1;
+            }
+            /* maximizada: os cantos ficam fora da tela */
+            desc { "max"; inherit: "default";
+               rel1.offset: -16 -16;
+               rel2.offset: 15 15;
+            }
+         }
+         rect { "bg"; nomouse;
+            clip_to: "mask";
+            desc { "default";
+               rel.to: "base";
+               color_class: "/voidbr/win/bg";
+            }
+         }
+         rect { "top"; nomouse;
+            scale: 1;
+            desc { "default";
+               rel2.relative: 1.0 0.0;
+               rel2.offset: -1 (TITLE - 1);
+               min: 0 TITLE;
+               fixed: 0 1;
+               align: 0.5 0.0;
+               color: 0 0 0 0;
+               offscale;
+            }
+         }
+         rect { "bottom"; nomouse;
+            scale: 1;
+            desc { "default";
+               rel1.relative: 0.0 1.0;
+               rel1.offset: 0 -4;
+               min: 0 4;
+               fixed: 0 1;
+               align: 0.5 1.0;
+               color: 0 0 0 0;
+               offscale;
+            }
+            desc { "shaded"; inherit: "default"; hid; min: 0 0; }
+            desc { "max"; inherit: "default"; hid; min: 0 0;
+               rel1.offset: 0 0;
+            }
+         }
+         part { name: "e.swallow.client"; type: SWALLOW;
+            clip_to: "mask";
+            desc { "default";
+               rel1.to_y: "top"; rel1.relative: 0.0 1.0;
+               rel2.to_y: "bottom"; rel2.relative: 1.0 0.0;
+            }
+            desc { "shaded"; inherit: "default";
+               rel2.to_y: "top";
+               rel2.relative: 1.0 1.0;
+            }
+            desc { "max"; inherit: "default";
+               rel2.to_y: "";
+               rel2.relative: 1.0 1.0;
+               rel2.offset: -1 -1;
+            }
+         }
+         /* ícone: não aparece, mas a área continua abrindo o menu da janela */
+         rect { "e.event.icon";
+            scale: 1;
+            desc { "default";
+               rel.to: "top";
+               rel1.offset: 6 0;
+               rel2.relative: 0.0 1.0;
+               rel2.offset: (6 + TITLE) -1;
+               align: 0.0 0.5;
+               color: 0 0 0 0;
+               offscale;
+            }
+         }
+         part { name: "e.swallow.icon"; type: SWALLOW; nomouse;
+            desc { "default"; rel.to: "e.event.icon"; hid; }
+         }
+         text { "e.text.title"; nomouse;
+            scale: 1;
+            clip_to: "mask";
+            desc { "default";
+               rel.to_y: "top";
+               rel1.to_x: "e.event.icon"; rel1.relative: 1.0 0.0;
+               rel2.to_x: "e.event.minimize"; rel2.relative: 0.0 1.0;
+               color_class: "/voidbr/win/title";
+               text { font: "Sans:style=Bold"; size: 10;
+                  text_class: "title_bar";
+                  align: 0.5 0.5;
+                  min: 0 1;
+                  ellipsis: 0.0;
+               }
+            }
+            desc { "focused"; inherit: "default";
+               color_class: "/voidbr/win/title/focused";
+            }
+            desc { "urgent"; inherit: "default";
+               color_class: "/voidbr/win/title/urgent";
+            }
+         }
+
+#define BUTTON(_NAME, _EV, _CC, _CCF, _CCP) \
+         image { _NAME; nomouse; \
+            scale: 1; \
+            clip_to: "mask"; \
+            desc { "default"; \
+               rel.to: _EV; \
+               image.normal: "win_btn.png"; \
+               min: BTN BTN; max: BTN BTN; \
+               fixed: 1 1; \
+               color_class: "/voidbr/win/button"; \
+            } \
+            desc { "focused"; inherit: "default"; \
+               color_class: _CCF; \
+            } \
+            desc { "hover"; inherit: "default"; \
+               min: (BTN + 3) (BTN + 3); max: (BTN + 3) (BTN + 3); \
+               color_class: _CC; \
+            } \
+            desc { "pressed"; inherit: "default"; \
+               color_class: _CCP; \
+            } \
+         }
+         /* áreas de clique dos botões: quadradas, à direita da barra */
+         rect { "e.event.close";
+            scale: 1;
+            desc { "default";
+               rel.to: "top";
+               rel1.relative: 1.0 0.0;
+               rel1.offset: (-1 - 8 - TITLE + 8) 0;
+               rel2.offset: -9 -1;
+               color: 0 0 0 0;
+               offscale;
+            }
+         }
+         rect { "e.event.maximize";
+            scale: 1;
+            desc { "default";
+               rel.to: "e.event.close";
+               rel1.offset: (-1 - BTN - BTNGAP) 0;
+               rel2.relative: 0.0 1.0;
+               rel2.offset: -1 -1;
+               color: 0 0 0 0;
+               offscale;
+            }
+         }
+         rect { "e.event.minimize";
+            scale: 1;
+            desc { "default";
+               rel.to: "e.event.maximize";
+               rel1.offset: (-1 - BTN - BTNGAP) 0;
+               rel2.relative: 0.0 1.0;
+               rel2.offset: -1 -1;
+               color: 0 0 0 0;
+               offscale;
+            }
+         }
+         BUTTON("btn.min", "e.event.minimize", "/voidbr/win/button/min", "/voidbr/win/button/focused", "/voidbr/win/button/pressed")
+         BUTTON("btn.max", "e.event.maximize", "/voidbr/win/button/max", "/voidbr/win/button/focused", "/voidbr/win/button/pressed")
+         BUTTON("btn.close", "e.event.close", "/voidbr/win/button/close", "/voidbr/win/button/close", "/voidbr/win/button/pressed")
+#undef BUTTON
+
+         /* arrastar a janela: barra de título inteira, por baixo dos botões */
+         rect { "e.event.titlebar";
+            desc { "default";
+               rel.to: "top";
+               rel1.to_x: "e.event.icon"; rel1.relative: 1.0 0.0;
+               rel2.to_x: "e.event.minimize"; rel2.relative: 0.0 1.0;
+               color: 0 0 0 0;
+            }
+         }
+         /* contorno fino por cima de tudo */
+         image { "outline"; nomouse;
+            desc { "default";
+               rel.to: "base";
+               image.normal: "win_line.png";
+               image.border: 12 12 12 12;
+               image.border_scale: 1;
+               image.middle: NONE;
+               color_class: "/voidbr/win/outline";
+            }
+            desc { "focused"; inherit: "default";
+               color_class: "/voidbr/win/outline/focused";
+            }
+            desc { "max"; inherit: "default"; hid; }
+         }
+
+         /* cantos e bordas para redimensionar */
+#define RSZ(_NAME, _R1X, _R1Y, _O1X, _O1Y, _R2X, _R2Y, _O2X, _O2Y) \
+         rect { _NAME; \
+            scale: 1; \
+            desc { "default"; \
+               rel1.relative: _R1X _R1Y; rel1.offset: _O1X _O1Y; \
+               rel2.relative: _R2X _R2Y; rel2.offset: _O2X _O2Y; \
+               color: 0 0 0 0; \
+               offscale; \
+            } \
+            desc { "max"; inherit: "default"; hid; } \
+            desc { "shaded"; inherit: "default"; hid; } \
+         }
+         RSZ("e.event.resize.tl", 0.0, 0.0, 0, 0, 0.0, 0.0, 15, 3)
+         RSZ("e.event.resize.t", 0.0, 0.0, 16, 0, 1.0, 0.0, -17, 3)
+         RSZ("e.event.resize.tr", 1.0, 0.0, -16, 0, 1.0, 0.0, -1, 3)
+         RSZ("e.event.resize.bl", 0.0, 1.0, 0, -6, 0.0, 1.0, 15, -1)
+         RSZ("e.event.resize.b", 0.0, 1.0, 16, -4, 1.0, 1.0, -17, -1)
+         RSZ("e.event.resize.br", 1.0, 1.0, -16, -6, 1.0, 1.0, -1, -1)
+#undef RSZ
+      }
+      programs {
+         program { signal: "e,version,22"; source: "e";
+            script {
+               set_pointer_mode(PART:"e.event.titlebar", 1);
+               set_pointer_mode(PART:"e.event.resize.tl", 1);
+               set_pointer_mode(PART:"e.event.resize.t", 1);
+               set_pointer_mode(PART:"e.event.resize.tr", 1);
+               set_pointer_mode(PART:"e.event.resize.bl", 1);
+               set_pointer_mode(PART:"e.event.resize.b", 1);
+               set_pointer_mode(PART:"e.event.resize.br", 1);
+            }
+         }
+         program { signal: "e,state,shadow,on"; source: "e";
+            action: STATE_SET "default" 0.0; target: "shadow";
+         }
+         program { signal: "e,state,shadow,off"; source: "e";
+            action: STATE_SET "hidden" 0.0; target: "shadow";
+         }
+         program { signal: "e,state,focused"; source: "e";
+            action: STATE_SET "focused" 0.0;
+            target: "shadow"; target: "e.text.title"; target: "outline";
+            target: "btn.min"; target: "btn.max"; target: "btn.close";
+            transition: SINUSOIDAL 0.15;
+         }
+         program { signal: "e,state,unfocused"; source: "e";
+            action: STATE_SET "default" 0.0;
+            target: "shadow"; target: "e.text.title"; target: "outline";
+            target: "btn.min"; target: "btn.max"; target: "btn.close";
+            transition: SINUSOIDAL 0.15;
+         }
+         program { signal: "e,state,urgent"; source: "e";
+            action: STATE_SET "urgent" 0.0; target: "e.text.title";
+         }
+         program { signal: "e,state,not_urgent"; source: "e";
+            action: STATE_SET "focused" 0.0; target: "e.text.title";
+         }
+         program { signal: "e,state,shaded"; source: "e";
+            action: STATE_SET "shaded" 0.0;
+            target: "base"; target: "e.swallow.client"; target: "bottom";
+            target: "e.event.resize.bl"; target: "e.event.resize.b"; target: "e.event.resize.br";
+         }
+         program { signal: "e,state,shading"; source: "e";
+            action: STATE_SET "shaded" 0.0;
+            target: "base"; target: "e.swallow.client"; target: "bottom";
+            target: "e.event.resize.bl"; target: "e.event.resize.b"; target: "e.event.resize.br";
+         }
+         program { signal: "e,state,unshad*"; source: "e";
+            action: STATE_SET "default" 0.0;
+            target: "base"; target: "e.swallow.client"; target: "bottom";
+            target: "e.event.resize.bl"; target: "e.event.resize.b"; target: "e.event.resize.br";
+         }
+         program { signal: "e,action,maximize*"; source: "e";
+            action: STATE_SET "max" 0.0;
+            target: "mask"; target: "outline"; target: "e.swallow.client"; target: "bottom";
+            target: "e.event.resize.tl"; target: "e.event.resize.t"; target: "e.event.resize.tr";
+            target: "e.event.resize.bl"; target: "e.event.resize.b"; target: "e.event.resize.br";
+         }
+         program { signal: "e,action,unmaximize*"; source: "e";
+            action: STATE_SET "default" 0.0;
+            target: "mask"; target: "outline"; target: "e.swallow.client"; target: "bottom";
+            target: "e.event.resize.tl"; target: "e.event.resize.t"; target: "e.event.resize.tr";
+            target: "e.event.resize.bl"; target: "e.event.resize.b"; target: "e.event.resize.br";
+         }
+#define BTNPROG(_EV, _BTN) \
+         program { signal: "mouse,in"; source: _EV; \
+            action: STATE_SET "hover" 0.0; target: _BTN; \
+            transition: SINUSOIDAL 0.1; \
+         } \
+         program { signal: "mouse,out"; source: _EV; \
+            action: STATE_SET "focused" 0.0; target: _BTN; \
+            transition: SINUSOIDAL 0.1; \
+         } \
+         program { signal: "mouse,down,*"; source: _EV; \
+            action: STATE_SET "pressed" 0.0; target: _BTN; \
+         } \
+         program { signal: "mouse,up,*"; source: _EV; \
+            action: STATE_SET "hover" 0.0; target: _BTN; \
+         }
+         BTNPROG("e.event.minimize", "btn.min")
+         BTNPROG("e.event.maximize", "btn.max")
+         BTNPROG("e.event.close", "btn.close")
+#undef BTNPROG
+      }
+   }
+
+#undef TITLE
+#undef BTN
+#undef BTNGAP

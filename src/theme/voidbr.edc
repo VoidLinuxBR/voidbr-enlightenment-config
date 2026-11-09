@@ -1,13 +1,17 @@
 /*
  * Tema complementar VoidBR para o Enlightenment.
  *
- * Só traz o que muda em relação ao tema padrão: o estilo de shelf "voidbr",
- * uma barra flutuante com cantos arredondados (como as "ilhas" da edição GNOME).
- * O resto vem do tema "default": o Elementary usa a lista "voidbr:default" e
- * procura cada grupo primeiro aqui e depois no default.
+ * Só traz o que muda em relação ao tema padrão; o Elementary usa a lista
+ * "voidbr:default" e procura cada grupo primeiro aqui e depois no default.
  *
- * As cores seguem a paleta ativa (voidbr): a ilha usa :bg-semi (fundo
- * translúcido) e a borda :bg-higher.
+ *   voidbr.edc        barra em ilha (estilo de shelf "voidbr")
+ *   border.edc        bordas das janelas (barra fina, botões redondos, cantos)
+ *   shell.edc         botão iniciar, áreas de trabalho em pílulas, popups,
+ *                     menus e quadros do compositor
+ *   notification.edc  notificações em cartão
+ *   desklock.edc      tela de bloqueio (relógio grande e cartão de senha)
+ *
+ * As cores seguem a paleta ativa (voidbr) pelo color_tree abaixo.
  *
  * Compilado pelo build.sh:  edje_cc -id src/theme voidbr.edc voidbr.edj
  */
@@ -17,18 +21,100 @@ data {
 }
 
 color_tree {
+   ":selected-medium" {
+      "/voidbr/lock/selection";
+   }
+   ":bg-darkest" {
+      "/voidbr/lock/field";
+   }
+   ":bg-trans" {
+      "/voidbr/lock/card";
+   }
+   ":fg-higher" {
+      "/voidbr/lock/fg";
+   }
+   ":dim-light" {
+      "/voidbr/lock/dim";
+   }
    ":bg-semi" {
       "/voidbr/shelf/island";
    }
    ":bg-higher" {
       "/voidbr/shelf/island/border";
    }
+   ":bg-dark" {
+      "/voidbr/win/bg";
+      "/voidbr/accent/fg";
+      "/voidbr/card/bg";
+   }
+   ":shadow" {
+      "/voidbr/win/shadow";
+   }
+   ":dim" {
+      "/voidbr/win/shadow/focused";
+   }
+   ":fg-dim" {
+      "/voidbr/win/title";
+      "/voidbr/win/button/pressed";
+      "/voidbr/pill/hover";
+      "/voidbr/card/fg/dim";
+   }
+   ":fg" {
+      "/voidbr/card/fg";
+   }
+   ":fg-high" {
+      "/voidbr/lock/fg/dim";
+      "/voidbr/win/title/focused";
+      "/voidbr/card/fg/high";
+   }
+   ":selected-alt" {
+      "/voidbr/lock/hint";
+      "/voidbr/win/title/urgent";
+      "/voidbr/win/button/min";
+   }
+   ":bg-high" {
+      "/voidbr/win/button";
+      "/voidbr/win/outline/focused";
+      "/voidbr/card/line";
+      "/voidbr/menu/hover";
+   }
+   ":bg-highest" {
+      "/voidbr/lock/field/line";
+      "/voidbr/win/button/focused";
+      "/voidbr/pill";
+   }
+   ":selected" {
+      "/voidbr/win/button/max";
+      "/voidbr/accent";
+   }
+   ":selected-heavy" {
+      "/voidbr/accent/active";
+   }
+   ":selected2" {
+      "/voidbr/card/link";
+   }
+   ":selected4" {
+      "/voidbr/win/button/close";
+      "/voidbr/card/close";
+   }
+   ":bg-medium" {
+      "/voidbr/win/outline";
+   }
 }
 
 images {
    image: "island.png" COMP;
    image: "island_border.png" COMP;
+   image: "win_round.png" COMP;
+   image: "win_line.png" COMP;
+   image: "win_btn.png" COMP;
+   image: "win_shadow.png" COMP;
+   image: "start_v.png" COMP;
+   image: "pill.png" COMP;
+   image: "close_x.png" COMP;
 }
+
+efl_version: 1 26;
 
 collections {
    /* GAP: distância da ilha até a borda da tela; PAD: espaço interno */
@@ -147,4 +233,9 @@ collections {
    }
 #undef GAP
 #undef PAD
+
+#include "border.edc"
+#include "shell.edc"
+#include "notification.edc"
+#include "desklock.edc"
 }

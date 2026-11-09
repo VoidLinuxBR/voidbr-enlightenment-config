@@ -1,0 +1,305 @@
+/*
+ * Peças do "shell" VoidBR no estilo da prévia:
+ *   - botão iniciar: quadrado verde arredondado com o V da VoidBR
+ *   - áreas de trabalho (pager): pílulas, a atual alongada e verde
+ *   - popups dos gadgets e menus: cartões arredondados com contorno fino
+ *   - quadros do compositor para popups e menus: sombra arredondada
+ */
+
+/* ---------------------------------------------------------------- iniciar */
+   group { name: "e/modules/start/main";
+      parts {
+         image { "bg"; nomouse;
+            scale: 1;
+            desc { "default";
+               rel1.relative: 0.5 0.5; rel2.relative: 0.5 0.5;
+               min: 30 30; max: 30 30;
+               image.normal: "win_round.png";
+               image.border: 12 12 12 12;
+               image.border_scale: 1;
+               image.border_scale_by: 0.85;
+               color_class: "/voidbr/accent";
+            }
+            desc { "active"; inherit: "default";
+               color_class: "/voidbr/accent/active";
+            }
+         }
+         image { "v"; nomouse;
+            desc { "default";
+               rel.to: "bg";
+               rel1.relative: 0.18 0.18; rel2.relative: 0.82 0.82;
+               image.normal: "start_v.png";
+               color_class: "/voidbr/accent/fg";
+            }
+         }
+         rect { "events";
+            desc { "default"; color: 0 0 0 0; }
+         }
+      }
+      programs {
+         program { signal: "e,state,focused"; source: "e";
+            action: STATE_SET "active" 0.0; target: "bg";
+         }
+         program { signal: "e,state,unfocused"; source: "e";
+            action: STATE_SET "default" 0.0; target: "bg";
+         }
+      }
+   }
+
+/* ------------------------------------------------------------------ pager */
+   group { name: "e/modules/pager16/desk";
+      alias: "e/modules/pager/desk";
+      parts {
+         rect { "base"; nomouse;
+            desc { "default"; color: 0 0 0 0; }
+         }
+         /* miniaturas: o pager continua mandando, mas não aparecem */
+         rect { "clip"; nomouse;
+            desc { "default"; rel.to: "base"; hid; }
+         }
+         part { name: "e.background"; type: SWALLOW; clip_to: "clip";
+            desc { "default"; rel.to: "base"; }
+         }
+         part { name: "e.swallow.content"; type: SWALLOW; clip_to: "clip";
+            desc { "default"; rel.to: "base"; }
+         }
+         text { "e.text.label"; nomouse;
+            desc { "default"; hid;
+               text { font: "Sans"; size: 8; }
+            }
+         }
+         image { "pill"; nomouse;
+            scale: 1;
+            desc { "default";
+               rel1.relative: 0.5 0.5; rel2.relative: 0.5 0.5;
+               min: 12 12; max: 12 12;
+               image.normal: "pill.png";
+               image.border: 15 15 15 15;
+               image.border_scale: 1;
+               image.border_scale_by: 0.4;
+               color_class: "/voidbr/pill";
+            }
+            desc { "selected"; inherit: "default";
+               min: 34 12; max: 34 12;
+               color_class: "/voidbr/accent";
+            }
+            desc { "drop"; inherit: "default";
+               min: 20 12; max: 20 12;
+               color_class: "/voidbr/pill/hover";
+            }
+         }
+         rect { "e.eventarea"; mouse;
+            desc { "default"; color: 0 0 0 0; }
+         }
+      }
+      programs {
+         program { signal: "e,state,selected"; source: "e";
+            action: STATE_SET "selected" 0.0; target: "pill";
+            transition: DECELERATE 0.2;
+         }
+         program { signal: "e,state,unselected"; source: "e";
+            action: STATE_SET "default" 0.0; target: "pill";
+            transition: DECELERATE 0.2;
+         }
+         program { signal: "e,action,drag,in"; source: "e";
+            action: STATE_SET "drop" 0.0; target: "pill";
+         }
+         program { signal: "e,action,drag,out"; source: "e";
+            action: STATE_SET "default" 0.0; target: "pill";
+         }
+      }
+   }
+
+/* --------------------------------------------- popups dos gadgets (cartão) */
+#define CARD \
+         image { "card"; nomouse; \
+            desc { "default"; \
+               image.normal: "win_round.png"; \
+               image.border: 12 12 12 12; \
+               image.border_scale: 1; \
+               image.border_scale_by: 1.4; \
+               color_class: "/voidbr/card/bg"; \
+            } \
+         } \
+         image { "card_line"; nomouse; \
+            desc { "default"; \
+               image.normal: "win_line.png"; \
+               image.border: 12 12 12 12; \
+               image.border_scale: 1; \
+               image.border_scale_by: 1.4; \
+               image.middle: NONE; \
+               color_class: "/voidbr/card/line"; \
+            } \
+         }
+
+   group { name: "e/gadman/popup";
+      parts {
+         CARD
+         part { name: "e.swallow.content"; type: SWALLOW;
+            clip_to: "clip";
+            scale: 1;
+            desc { "default";
+               rel1.offset: 12 12;
+               rel2.offset: -13 -13;
+               offscale;
+            }
+         }
+         rect { "clip"; nomouse;
+            desc { "default"; }
+         }
+      }
+   }
+
+/* ----------------------------------------------------------------- menus */
+   group { name: "e/widgets/menu/default/background";
+      parts {
+         CARD
+         rect { "clip"; nomouse;
+            desc { "default"; rel1.offset: 6 6; rel2.offset: -7 -7; }
+         }
+         text { "e.text.title"; nomouse;
+            scale: 1;
+            desc { "default";
+               rel1.offset: 12 0;
+               rel2.relative: 1.0 0.0;
+               rel2.offset: -13 -1;
+               align: 0.5 0.0;
+               color_class: "/voidbr/card/fg/dim";
+               max: 0 0;
+               fixed: 0 1;
+               hid;
+               text { font: "Sans:style=Bold"; size: 9;
+                  text_class: "menu_title";
+                  align: 0.0 0.0;
+                  min: 0 0;
+               }
+               offscale;
+            }
+            desc { "active"; inherit: "default";
+               rel1.offset: 14 10;
+               rel2.offset: -15 10;
+               max: 99999 99999;
+               text.min: 0 1;
+               vis;
+            }
+         }
+         part { name: "e.swallow.content"; type: SWALLOW;
+            clip_to: "clip";
+            scale: 1;
+            desc { "default";
+               rel1.offset: 6 6;
+               rel2.offset: -7 -7;
+               offscale;
+            }
+            desc { "active"; inherit: "default";
+               rel1.relative: 0.0 1.0;
+               rel1.offset: 6 6;
+               rel1.to_y: "e.text.title";
+            }
+         }
+      }
+      programs {
+         program { signal: "e,action,show,title"; source: "e";
+            action: STATE_SET "active" 0.0;
+            target: "e.text.title"; target: "e.swallow.content";
+         }
+         program { signal: "e,action,hide,title"; source: "e";
+            action: STATE_SET "default" 0.0;
+            target: "e.text.title"; target: "e.swallow.content";
+         }
+      }
+   }
+
+   group { name: "e/widgets/menu/default/item_bg";
+      alias: "e/widgets/menu/default/submenu_bg";
+      parts {
+         image { "base"; nomouse;
+            desc { "default";
+               image.normal: "win_round.png";
+               image.border: 12 12 12 12;
+               image.border_scale: 1;
+               image.border_scale_by: 0.6;
+               color_class: "/voidbr/menu/hover";
+               hid;
+            }
+            desc { "active"; inherit: "default"; vis; }
+         }
+         part { name: "e.swallow.content"; type: SWALLOW;
+            scale: 1;
+            desc { "default";
+               rel1.offset: 8 6;
+               rel2.offset: -9 -7;
+               min: 0 18;
+               offscale;
+            }
+         }
+         rect { "events";
+            desc { "default"; color: 0 0 0 0; }
+         }
+      }
+      programs {
+         program { signal: "e,state,selected"; source: "e";
+            action: STATE_SET "active" 0.0; target: "base";
+         }
+         program { signal: "e,state,unselected"; source: "e";
+            action: STATE_SET "default" 0.0; target: "base";
+         }
+      }
+   }
+#undef CARD
+
+/* ------------------------------- quadros do compositor: popups e menus */
+/* sombra arredondada (a do tema padrão é quadrada e aparece nos cantos) */
+#define FRAME(_NAME, _ALIAS) \
+   group { name: _NAME; \
+      alias: _ALIAS; \
+      parts { \
+         rect { "clipper"; nomouse; \
+            desc { "default"; color: 255 255 255 0; } \
+            desc { "visible"; inherit: "default"; color: 255 255 255 255; } \
+         } \
+         image { "shadow"; nomouse; \
+            clip_to: "clipper"; \
+            desc { "default"; \
+               rel.to: "e.swallow.content"; \
+               rel1.offset: -22 -14; \
+               rel2.offset: 21 29; \
+               image.normal: "win_shadow.png"; \
+               image.border: 60 60 60 60; \
+               color_class: "/voidbr/win/shadow/focused"; \
+            } \
+            desc { "hidden"; inherit: "default"; hid; } \
+         } \
+         part { name: "e.swallow.content"; type: SWALLOW; \
+            clip_to: "clipper"; \
+            desc { "default"; } \
+         } \
+      } \
+      programs { \
+         program { signal: "e,state,shadow,on"; source: "e"; \
+            action: STATE_SET "default" 0.0; target: "shadow"; \
+         } \
+         program { signal: "e,state,shadow,off"; source: "e"; \
+            action: STATE_SET "hidden" 0.0; target: "shadow"; \
+         } \
+         program { signal: "e,state,visible"; source: "e"; \
+            action: STATE_SET "visible" 0.0; target: "clipper"; \
+            transition: DECELERATE 0.12; \
+            after: "show_done"; \
+         } \
+         program { name: "show_done"; \
+            action: SIGNAL_EMIT "e,action,show,done" "e"; \
+         } \
+         program { signal: "e,state,hidden"; source: "e"; \
+            action: STATE_SET "default" 0.0; target: "clipper"; \
+            transition: ACCELERATE 0.1; \
+            after: "hide_done"; \
+         } \
+         program { name: "hide_done"; \
+            action: SIGNAL_EMIT "e,action,hide,done" "e"; \
+         } \
+      } \
+   }
+   FRAME("e/comp/frame/popup", "e/comp/frame/popup/fast")
+   FRAME("e/comp/frame/menu", "e/comp/frame/menu/fast")
+#undef FRAME

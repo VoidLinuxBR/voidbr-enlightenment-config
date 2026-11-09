@@ -10,7 +10,7 @@
 #     usr/share/voidbr-enlightenment/backgrounds/   wallpaper .edj (do voidbr-wallpapers)
 #     etc/skel/.e/e/config/                         perfil voidbr já ativo para novos usuários
 #     usr/share/elementary/config/voidbr/           perfil voidbr do Elementary
-#     usr/share/elementary/themes/voidbr.edj        tema complementar (barra em ilha)
+#     usr/share/elementary/themes/voidbr.edj        tema complementar (barra, janelas, menus, bloqueio)
 #     etc/skel/.elementary/config/{voidbr,standard} tema flat + paleta voidbr + ícones Tokyonight
 #     usr/share/terminology/colorschemes/           esquema "VoidBR Tokyo Night" do Terminology
 #     etc/skel/.config/terminology/                 Terminology usando esse esquema
@@ -117,7 +117,7 @@ fi
 # 5. tema complementar "voidbr" (barra flutuante com cantos arredondados).
 #    O Elementary usa a lista "voidbr:default": grupos que não estão aqui vêm do default.
 command -v edje_cc >/dev/null || die "edje_cc não encontrado (necessário para o tema)"
-msg "Tema complementar voidbr (barra em ilha)"
+msg "Tema complementar voidbr"
 install -d "${destdir}/usr/share/elementary/themes"
 edje_cc -id "${srcdir}/theme" "${srcdir}/theme/voidbr.edc" \
 	"${destdir}/usr/share/elementary/themes/voidbr.edj" ||
