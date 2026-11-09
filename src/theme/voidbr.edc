@@ -45,6 +45,7 @@ color_tree {
       "/voidbr/shelf/island";
    }
    ":bg-higher" {
+      "/voidbr/dock/tile";
       "/voidbr/status/bg";
       "/voidbr/shelf/island/border";
    }
@@ -90,6 +91,7 @@ color_tree {
       "/voidbr/menu/hover";
    }
    ":bg-highest" {
+      "/voidbr/dock/tile/hover";
       "/voidbr/status/bg/active";
       "/voidbr/card/hover";
       "/voidbr/lock/field/line";
