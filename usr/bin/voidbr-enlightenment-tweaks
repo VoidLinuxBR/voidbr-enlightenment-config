@@ -109,6 +109,8 @@ POSICOES = [(6, "Embaixo"), (5, "Em cima"), (3, "À esquerda"), (4, "À direita"
 
 # módulos mostrados (nome, título, dica); só aparecem os instalados
 MODULOS = [
+    ("voidbr", "Central VoidBR", "pílula de Wi-Fi/volume/bateria, central de controle e título da janela "
+                                 "na barra"),
     ("networkmanager", "Rede (NetworkManager)", "Wi-Fi, cabo e VPN no gadget da barra (E 0.28)"),
     ("connman", "Rede (ConnMan)", "só para quem usa o connman em vez do NetworkManager"),
     ("bluez5", "Bluetooth", "adaptadores e dispositivos no gadget da barra"),

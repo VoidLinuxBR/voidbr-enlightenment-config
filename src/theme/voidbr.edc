@@ -10,6 +10,8 @@
  *                     menus e quadros do compositor
  *   notification.edc  notificações em cartão
  *   desklock.edc      tela de bloqueio (relógio grande e cartão de senha)
+ *   central.edc       módulo voidbr (pílula de status, central de controle,
+ *                     título da janela) e ícones do dock
  *
  * As cores seguem a paleta ativa (voidbr) pelo color_tree abaixo.
  *
@@ -21,6 +23,9 @@ data {
 }
 
 color_tree {
+   ":bg-dim" {
+      "/voidbr/panel";
+   }
    ":selected-medium" {
       "/voidbr/lock/selection";
    }
@@ -40,6 +45,7 @@ color_tree {
       "/voidbr/shelf/island";
    }
    ":bg-higher" {
+      "/voidbr/status/bg";
       "/voidbr/shelf/island/border";
    }
    ":bg-dark" {
@@ -54,31 +60,38 @@ color_tree {
       "/voidbr/win/shadow/focused";
    }
    ":fg-dim" {
+      "/voidbr/status/fg/dim";
       "/voidbr/win/title";
       "/voidbr/win/button/pressed";
       "/voidbr/pill/hover";
       "/voidbr/card/fg/dim";
    }
    ":fg" {
+      "/voidbr/status/fg/title";
       "/voidbr/card/fg";
    }
    ":fg-high" {
+      "/voidbr/status/fg";
       "/voidbr/lock/fg/dim";
       "/voidbr/win/title/focused";
       "/voidbr/card/fg/high";
    }
    ":selected-alt" {
+      "/voidbr/status/urgent";
       "/voidbr/lock/hint";
       "/voidbr/win/title/urgent";
       "/voidbr/win/button/min";
    }
    ":bg-high" {
+      "/voidbr/card/off";
       "/voidbr/win/button";
       "/voidbr/win/outline/focused";
       "/voidbr/card/line";
       "/voidbr/menu/hover";
    }
    ":bg-highest" {
+      "/voidbr/status/bg/active";
+      "/voidbr/card/hover";
       "/voidbr/lock/field/line";
       "/voidbr/win/button/focused";
       "/voidbr/pill";
@@ -94,6 +107,8 @@ color_tree {
       "/voidbr/card/link";
    }
    ":selected4" {
+      "/voidbr/status/low";
+      "/voidbr/danger";
       "/voidbr/win/button/close";
       "/voidbr/card/close";
    }
@@ -112,6 +127,24 @@ images {
    image: "start_v.png" COMP;
    image: "pill.png" COMP;
    image: "close_x.png" COMP;
+   image: "ic_battery.png" COMP;
+   image: "ic_bell_off.png" COMP;
+   image: "ic_bluetooth.png" COMP;
+   image: "ic_bolt.png" COMP;
+   image: "ic_camera.png" COMP;
+   image: "ic_gear.png" COMP;
+   image: "ic_lock.png" COMP;
+   image: "ic_moon.png" COMP;
+   image: "ic_power.png" COMP;
+   image: "ic_restart.png" COMP;
+   image: "ic_sliders.png" COMP;
+   image: "ic_sun.png" COMP;
+   image: "ic_tiling.png" COMP;
+   image: "ic_vol_high.png" COMP;
+   image: "ic_vol_low.png" COMP;
+   image: "ic_vol_mute.png" COMP;
+   image: "ic_wifi.png" COMP;
+   image: "ic_wifi_off.png" COMP;
 }
 
 efl_version: 1 26;
@@ -238,4 +271,5 @@ collections {
 #include "shell.edc"
 #include "notification.edc"
 #include "desklock.edc"
+#include "central.edc"
 }

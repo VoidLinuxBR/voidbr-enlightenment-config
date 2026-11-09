@@ -10,7 +10,7 @@ Configuração padrão do **Enlightenment** no VoidBR Linux.
 | `/usr/share/elementary/colors/voidbr.pal` | Paleta de cores VoidBR (Tokyo Night) para o tema flat do EFL |
 | `/usr/share/elementary/config/voidbr/` | Perfil `voidbr` do Elementary (o E usa o mesmo nome de perfil) |
 | `/usr/share/voidbr-enlightenment/backgrounds/voidbr.edj` | Wallpaper oficial (`voidbr-wallpaper.avif` do voidbr-wallpapers, empacotado em .edj) |
-| `/usr/share/elementary/themes/voidbr.edj` | Tema VoidBR por cima do `default`: barra no topo e dock em ilha, janelas com barra fina e cantos arredondados, menus/popups/notificações em cartão, áreas de trabalho em pílulas e tela de bloqueio com relógio |
+| `/usr/share/elementary/themes/voidbr.edj` | Tema VoidBR por cima do `default`: barra no topo e dock em ilha, janelas com barra fina e cantos arredondados, menus/popups/notificações em cartão, áreas de trabalho em pílulas, tela de bloqueio com relógio, e os grupos do módulo `voidbr` (pílula de status, central de controle, título da janela) |
 | `/etc/skel/.e/e/config/` | Perfil `voidbr` já ativo para novos usuários |
 | `/etc/skel/.elementary/config/` | Tema `default` + paleta `voidbr` + ícones Tokyonight-Dark-Icons |
 | `/etc/skel/.config/conky/conky.conf` | Conky com as cores VoidBR |

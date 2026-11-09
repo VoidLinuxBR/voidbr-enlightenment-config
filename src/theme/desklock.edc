@@ -51,6 +51,14 @@
          }
       }
       parts {
+         /* escurece a tela toda (sai da caixa, que é só do tamanho do cartão) */
+         rect { "dim"; nomouse;
+            desc { "default";
+               rel1.to: "card_area"; rel1.relative: -20.0 -20.0;
+               rel2.to: "card_area"; rel2.relative: 21.0 21.0;
+               color_class: "/voidbr/lock/dim";
+            }
+         }
          text { "clock"; nomouse;
             scale: 1;
             desc { "default";
@@ -82,7 +90,7 @@
                rel1.relative: 0.5 0.5;
                rel2.relative: 0.5 0.5;
                align: 0.5 0.5;
-               min: 380 250; max: 380 250;
+               min: 380 254; max: 380 254;
                fixed: 1 1;
             }
          }
@@ -111,29 +119,64 @@
             scale: 1;
             desc { "default";
                rel.to: "card_area";
-               rel1.relative: 0.5 0.0; rel1.offset: 0 26;
-               rel2.relative: 0.5 0.0; rel2.offset: 0 26;
+               rel1.relative: 0.5 0.0; rel1.offset: 0 24;
+               rel2.relative: 0.5 0.0; rel2.offset: 0 24;
                align: 0.5 0.0;
                min: 64 64; max: 64 64;
                fixed: 1 1;
                image.normal: "win_btn.png";
+               color_class: "/voidbr/card/off";
+            }
+         }
+         image { "avatar_ring"; nomouse;
+            desc { "default";
+               rel.to: "avatar";
+               rel1.offset: -2 -2; rel2.offset: 1 1;
+               image.normal: "win_btn.png";
                color_class: "/voidbr/accent";
+            }
+         }
+         image { "avatar_in"; nomouse;
+            desc { "default";
+               rel.to: "avatar";
+               rel1.offset: 1 1; rel2.offset: -2 -2;
+               image.normal: "win_btn.png";
+               color_class: "/voidbr/card/off";
             }
          }
          image { "avatar_v"; nomouse;
             desc { "default";
                rel.to: "avatar";
-               rel1.relative: 0.2 0.2; rel2.relative: 0.8 0.8;
+               rel1.relative: 0.22 0.22; rel2.relative: 0.78 0.78;
                image.normal: "start_v.png";
-               color_class: "/voidbr/accent/fg";
+               color_class: "/voidbr/accent";
+            }
+            desc { "hidden"; inherit: "default"; hid; }
+         }
+         text { "e.text.initials"; nomouse;
+            scale: 1;
+            desc { "default";
+               rel.to: "avatar";
+               color_class: "/voidbr/accent";
+               text { font: "Sans:style=Bold"; size: 22; align: 0.5 0.5; }
+            }
+         }
+         text { "e.text.user"; nomouse;
+            scale: 1;
+            desc { "default";
+               rel.to_x: "card_area";
+               rel1.to_y: "avatar"; rel1.relative: 0.0 1.0; rel1.offset: 20 10;
+               rel2.to_y: "avatar"; rel2.relative: 1.0 1.0; rel2.offset: -21 32;
+               color_class: "/voidbr/lock/fg";
+               text { font: "Sans:style=Bold"; size: 14; align: 0.5 0.5; ellipsis: -1; }
             }
          }
          text { "e.text.title"; nomouse;
             scale: 1;
             desc { "default";
                rel.to_x: "card_area";
-               rel1.to_y: "avatar"; rel1.relative: 0.0 1.0; rel1.offset: 20 14;
-               rel2.to_y: "avatar"; rel2.relative: 1.0 1.0; rel2.offset: -21 34;
+               rel1.to_y: "e.text.user"; rel1.relative: 0.0 1.0; rel1.offset: 20 0;
+               rel2.to_y: "e.text.user"; rel2.relative: 1.0 1.0; rel2.offset: -21 20;
                color_class: "/voidbr/lock/fg/dim";
                text { font: "Sans"; size: 11;
                   text_class: "desklock_title";
@@ -230,10 +273,49 @@
                }
             }
          }
+
+         /* energia: o patch do lokker no pacote enlightenment do VoidBR atende
+            os sinais e,action,voidbr,{suspend,reboot,halt} */
+#define PBTN(_N, _IMG, _X, _CC) \
+         image { "pb_"_N; mouse; \
+            scale: 1; \
+            desc { "default"; \
+               rel1.to: "card_area"; rel1.relative: 0.5 1.0; rel1.offset: _X 22; \
+               rel2.to: "card_area"; rel2.relative: 0.5 1.0; rel2.offset: _X 22; \
+               align: 0.5 0.0; \
+               min: 44 44; max: 44 44; \
+               fixed: 1 1; \
+               image.normal: "win_round.png"; \
+               image.border: 12 12 12 12; \
+               image.border_scale: 1; \
+               image.border_scale_by: 0.9; \
+               color_class: "/voidbr/lock/card"; \
+            } \
+            desc { "hover"; inherit: "default"; \
+               color_class: "/voidbr/card/hover"; \
+            } \
+         } \
+         image { "pbi_"_N; nomouse; \
+            desc { "default"; \
+               rel.to: "pb_"_N; \
+               rel1.relative: 0.3 0.3; rel2.relative: 0.7 0.7; \
+               image.normal: _IMG; \
+               color_class: _CC; \
+            } \
+         }
+         PBTN("suspend", "ic_moon.png", -54, "/voidbr/lock/fg")
+         PBTN("reboot", "ic_restart.png", 0, "/voidbr/lock/fg")
+         PBTN("halt", "ic_power.png", 54, "/voidbr/danger")
+#undef PBTN
       }
       programs {
          program { signal: "show"; source: "";
-            script { atualiza(); }
+            script {
+               new t[8];
+               atualiza();
+               get_text(PART:"e.text.initials", t, sizeof(t));
+               if (strlen(t) > 0) set_state(PART:"avatar_v", "hidden", 0.0);
+            }
          }
          program { name: "cursor_show";
             signal: "show"; source: "";
@@ -270,6 +352,20 @@
             action: STATE_SET "default" 0.0;
             target: "field_line";
          }
+#define PBTNPROG(_N) \
+         program { signal: "mouse,in"; source: "pb_"_N; \
+            action: STATE_SET "hover" 0.0; target: "pb_"_N; \
+         } \
+         program { signal: "mouse,out"; source: "pb_"_N; \
+            action: STATE_SET "default" 0.0; target: "pb_"_N; \
+         } \
+         program { signal: "mouse,clicked,1"; source: "pb_"_N; \
+            action: SIGNAL_EMIT "e,action,voidbr,"_N "e"; \
+         }
+         PBTNPROG("suspend")
+         PBTNPROG("reboot")
+         PBTNPROG("halt")
+#undef PBTNPROG
          program { signal: "e,action,hide"; source: "e";
             action: SIGNAL_EMIT "e,state,invalid" "e";
          }

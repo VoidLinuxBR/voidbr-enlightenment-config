@@ -1,0 +1,663 @@
+/*
+ * Grupos do módulo "voidbr" do Enlightenment (src/modules/voidbr no pacote
+ * enlightenment do VoidBR):
+ *
+ *   e/modules/voidbr/status   pílula da barra: Wi-Fi, volume e bateria;
+ *                             um clique abre a central de controle
+ *   e/modules/voidbr/title    título da janela ativa
+ *   e/modules/voidbr/header   topo da central (avatar, nome, tempo ligado)
+ *   e/modules/voidbr/card/*   cartões de liga/desliga da central
+ *   e/modules/voidbr/button/* botões redondos (configurações, bloquear, desligar)
+ *   e/modules/voidbr/sliders  volume e brilho
+ *   e/modules/voidbr/footer   bateria e botões de bloquear/desligar
+ *
+ * O módulo manda os sinais e textos; sem estes grupos ele não aparece.
+ */
+
+#define ICON(_NAME, _IMG, _REL, _CC) \
+         image { _NAME; nomouse; \
+            desc { "default"; \
+               rel.to: _REL; \
+               image.normal: _IMG; \
+               aspect: 1.0 1.0; aspect_preference: BOTH; \
+               color_class: _CC; \
+            } \
+         }
+
+/* ------------------------------------------------------- pílula da barra */
+   group { name: "e/modules/voidbr/status";
+      min: 112 28;
+      script {
+         public message(Msg_Type:type, id, ...) {
+            if ((type == MSG_FLOAT) && (id == 1)) {
+               new Float:v = getfarg(2);
+               if (v < 0.0) v = 0.0;
+               if (v > 1.0) v = 1.0;
+               custom_state(PART:"bat_fill", "default", 0.0);
+               set_state_val(PART:"bat_fill", STATE_REL2, v, 1.0);
+               set_state(PART:"bat_fill", "custom", 0.0);
+            }
+         }
+      }
+      parts {
+         image { "bg"; nomouse;
+            scale: 1;
+            desc { "default";
+               rel1.offset: 0 2;
+               rel2.offset: -1 -3;
+               image.normal: "win_round.png";
+               image.border: 12 12 12 12;
+               image.border_scale: 1;
+               image.border_scale_by: 0.8;
+               color_class: "/voidbr/status/bg";
+            }
+            desc { "active"; inherit: "default";
+               color_class: "/voidbr/status/bg/active";
+            }
+         }
+         spacer { "s_wifi";
+            scale: 1;
+            desc { "default";
+               rel.to: "bg";
+               rel1.offset: 10 6;
+               rel2.relative: 0.0 1.0; rel2.offset: 10 -7;
+               align: 0.0 0.5;
+               min: 16 16; max: 16 16;
+               fixed: 1 1;
+            }
+            desc { "hidden"; inherit: "default";
+               min: 0 16; max: 0 16;
+               rel1.offset: 4 6; rel2.offset: 4 -7;
+            }
+         }
+         spacer { "s_vol";
+            scale: 1;
+            desc { "default";
+               rel.to_y: "bg";
+               rel1.to_x: "s_wifi"; rel1.relative: 1.0 0.0; rel1.offset: 10 6;
+               rel2.to_x: "s_wifi"; rel2.relative: 1.0 1.0; rel2.offset: 10 -7;
+               align: 0.0 0.5;
+               min: 16 16; max: 16 16;
+               fixed: 1 1;
+            }
+         }
+         spacer { "s_bat";
+            scale: 1;
+            desc { "default";
+               rel.to_y: "bg";
+               rel1.to_x: "s_vol"; rel1.relative: 1.0 0.0; rel1.offset: 10 6;
+               rel2.to_x: "s_vol"; rel2.relative: 1.0 1.0; rel2.offset: 10 -7;
+               align: 0.0 0.5;
+               min: 20 16; max: 20 16;
+               fixed: 1 1;
+            }
+            desc { "hidden"; inherit: "default";
+               min: 0 16; max: 0 16;
+            }
+         }
+         image { "wifi"; nomouse;
+            desc { "default";
+               rel.to: "s_wifi";
+               image.normal: "ic_wifi.png";
+               color_class: "/voidbr/status/fg";
+            }
+            desc { "off"; inherit: "default";
+               image.normal: "ic_wifi_off.png";
+               color_class: "/voidbr/status/fg/dim";
+            }
+            desc { "hidden"; inherit: "default"; hid; }
+         }
+         image { "vol"; nomouse;
+            desc { "default";
+               rel.to: "s_vol";
+               image.normal: "ic_vol_high.png";
+               color_class: "/voidbr/status/fg";
+            }
+            desc { "low"; inherit: "default";
+               image.normal: "ic_vol_low.png";
+            }
+            desc { "mute"; inherit: "default";
+               image.normal: "ic_vol_mute.png";
+               color_class: "/voidbr/status/fg/dim";
+            }
+         }
+         image { "bat"; nomouse;
+            desc { "default";
+               rel.to: "s_bat";
+               image.normal: "ic_battery.png";
+               color_class: "/voidbr/status/fg";
+            }
+            desc { "hidden"; inherit: "default"; hid; }
+         }
+         /* carga: dentro da moldura (3..41 x 13..35 de 48) */
+         spacer { "bat_in";
+            desc { "default";
+               rel.to: "bat";
+               rel1.relative: (6/48) (16/48);
+               rel2.relative: (38/48) (32/48);
+            }
+         }
+         rect { "bat_fill"; nomouse;
+            desc { "default";
+               rel.to: "bat_in";
+               rel2.relative: 0.8 1.0;
+               color_class: "/voidbr/accent";
+            }
+            desc { "low"; inherit: "default";
+               color_class: "/voidbr/status/low";
+            }
+            desc { "hidden"; inherit: "default"; hid; }
+         }
+         image { "bolt"; nomouse;
+            desc { "default";
+               rel.to: "bat";
+               rel1.relative: 0.25 0.1; rel2.relative: 0.75 0.9;
+               image.normal: "ic_bolt.png";
+               color_class: "/voidbr/status/fg";
+               hid;
+            }
+            desc { "visible"; inherit: "default"; vis; }
+         }
+         text { "e.text.battery"; nomouse;
+            scale: 1;
+            desc { "default";
+               rel.to_y: "bg";
+               rel1.to_x: "s_bat"; rel1.relative: 1.0 0.0; rel1.offset: 5 0;
+               rel2.to_x: "s_bat"; rel2.relative: 1.0 1.0; rel2.offset: 5 -1;
+               align: 0.0 0.5;
+               fixed: 1 0;
+               color_class: "/voidbr/status/fg";
+               text { font: "Sans:style=Bold"; size: 10;
+                  min: 1 0;
+                  align: 0.0 0.5;
+                  text_class: "module_small";
+               }
+            }
+            desc { "hidden"; inherit: "default"; hid;
+               text.min: 0 0;
+            }
+         }
+         rect { "events"; mouse;
+            desc { "default"; color: 0 0 0 0; }
+         }
+      }
+      programs {
+         program { signal: "e,wifi,on"; source: "e";
+            action: STATE_SET "default" 0.0; target: "wifi"; target: "s_wifi";
+         }
+         program { signal: "e,wifi,off"; source: "e";
+            action: STATE_SET "off" 0.0; target: "wifi";
+            after: "wifi_space";
+         }
+         program { name: "wifi_space";
+            action: STATE_SET "default" 0.0; target: "s_wifi";
+         }
+         program { signal: "e,wifi,none"; source: "e";
+            action: STATE_SET "hidden" 0.0; target: "wifi"; target: "s_wifi";
+         }
+         program { signal: "e,vol,high"; source: "e";
+            action: STATE_SET "default" 0.0; target: "vol";
+         }
+         program { signal: "e,vol,low"; source: "e";
+            action: STATE_SET "low" 0.0; target: "vol";
+         }
+         program { signal: "e,vol,mute"; source: "e";
+            action: STATE_SET "mute" 0.0; target: "vol";
+         }
+         program { signal: "e,bat,none"; source: "e";
+            action: STATE_SET "hidden" 0.0;
+            target: "bat"; target: "s_bat"; target: "bat_fill"; target: "e.text.battery";
+         }
+         program { signal: "e,bat,ok"; source: "e";
+            action: STATE_SET "default" 0.0;
+            target: "bat"; target: "s_bat"; target: "e.text.battery";
+            after: "bat_fill_ok";
+         }
+         program { name: "bat_fill_ok";
+            script {
+               new st[16]; new Float:v;
+               get_state(PART:"bat_fill", st, sizeof(st), v);
+               if (!strcmp(st, "hidden") || !strcmp(st, "low")) set_state(PART:"bat_fill", "default", 0.0);
+            }
+         }
+         program { signal: "e,bat,low"; source: "e";
+            action: STATE_SET "default" 0.0;
+            target: "bat"; target: "s_bat"; target: "e.text.battery";
+            after: "bat_fill_low";
+         }
+         program { name: "bat_fill_low";
+            action: STATE_SET "low" 0.0; target: "bat_fill";
+         }
+         program { signal: "e,charging,on"; source: "e";
+            action: STATE_SET "visible" 0.0; target: "bolt";
+         }
+         program { signal: "e,charging,off"; source: "e";
+            action: STATE_SET "default" 0.0; target: "bolt";
+         }
+         program { signal: "e,state,active"; source: "e";
+            action: STATE_SET "active" 0.0; target: "bg";
+         }
+         program { signal: "e,state,passive"; source: "e";
+            action: STATE_SET "default" 0.0; target: "bg";
+         }
+      }
+   }
+
+/* ------------------------------------------------- título da janela ativa */
+   group { name: "e/modules/voidbr/title";
+      parts {
+         text { "e.text.title"; nomouse;
+            scale: 1;
+            desc { "default";
+               rel1.offset: 4 0;
+               rel2.offset: -5 -1;
+               color_class: "/voidbr/status/fg/title";
+               text { font: "Sans:style=Medium"; size: 10;
+                  align: 0.0 0.5;
+                  ellipsis: 0.0;
+                  text_class: "module_normal";
+               }
+            }
+         }
+         rect { "events"; mouse;
+            desc { "default"; color: 0 0 0 0; }
+         }
+      }
+   }
+
+/* ------------------------------------------------------ topo da central */
+   group { name: "e/modules/voidbr/header";
+      min: 320 52;
+      parts {
+         image { "avatar"; nomouse;
+            scale: 1;
+            desc { "default";
+               rel2.relative: 0.0 1.0;
+               align: 0.0 0.5;
+               min: 46 46; max: 46 46;
+               fixed: 1 1;
+               image.normal: "win_btn.png";
+               color_class: "/voidbr/card/off";
+            }
+         }
+         text { "e.text.initials"; nomouse;
+            scale: 1;
+            desc { "default";
+               rel.to: "avatar";
+               color_class: "/voidbr/accent";
+               text { font: "Sans:style=Bold"; size: 15; align: 0.5 0.5; }
+            }
+         }
+         part { name: "e.swallow.button"; type: SWALLOW;
+            scale: 1;
+            desc { "default";
+               rel1.relative: 1.0 0.0;
+               align: 1.0 0.5;
+               min: 38 38; max: 38 38;
+               fixed: 1 1;
+            }
+         }
+         text { "e.text.name"; nomouse;
+            scale: 1;
+            desc { "default";
+               rel1.to_x: "avatar"; rel1.relative: 1.0 0.0; rel1.offset: 12 6;
+               rel2.to_x: "e.swallow.button"; rel2.relative: 0.0 0.5; rel2.offset: -9 0;
+               color_class: "/voidbr/card/fg/high";
+               text { font: "Sans:style=Bold"; size: 12; align: 0.0 1.0; ellipsis: 0.0; }
+            }
+         }
+         text { "e.text.sub"; nomouse;
+            scale: 1;
+            desc { "default";
+               rel1.to_x: "avatar"; rel1.relative: 1.0 0.5; rel1.offset: 12 2;
+               rel2.to_x: "e.swallow.button"; rel2.relative: 0.0 1.0; rel2.offset: -9 -6;
+               color_class: "/voidbr/card/fg/dim";
+               text { font: "Sans"; size: 10; align: 0.0 0.0; ellipsis: 0.0; }
+            }
+         }
+      }
+   }
+
+/* ------------------------------------------------------------- cartões */
+#define CARD(_NAME, _IMG) \
+   group { name: "e/modules/voidbr/card/"_NAME; \
+      min: 154 58; \
+      parts { \
+         image { "bg"; nomouse; \
+            desc { "default"; \
+               image.normal: "win_round.png"; \
+               image.border: 12 12 12 12; \
+               image.border_scale: 1; \
+               image.border_scale_by: 1.2; \
+               color_class: "/voidbr/card/off"; \
+            } \
+            desc { "on"; inherit: "default"; \
+               color_class: "/voidbr/accent"; \
+            } \
+            desc { "hover"; inherit: "default"; \
+               color_class: "/voidbr/card/hover"; \
+            } \
+            desc { "on_hover"; inherit: "default"; \
+               color_class: "/voidbr/accent/active"; \
+            } \
+         } \
+         image { "icon"; nomouse; \
+            scale: 1; \
+            desc { "default"; \
+               rel1.offset: 14 0; \
+               rel2.relative: 0.0 1.0; rel2.offset: 14 -1; \
+               align: 0.0 0.5; \
+               min: 20 20; max: 20 20; \
+               fixed: 1 1; \
+               image.normal: _IMG; \
+               color_class: "/voidbr/card/fg/high"; \
+            } \
+            desc { "on"; inherit: "default"; \
+               color_class: "/voidbr/accent/fg"; \
+            } \
+         } \
+         text { "e.text.label"; nomouse; \
+            scale: 1; \
+            desc { "default"; \
+               rel1.to_x: "icon"; rel1.relative: 1.0 0.0; rel1.offset: 10 9; \
+               rel2.relative: 1.0 0.5; rel2.offset: -9 0; \
+               color_class: "/voidbr/card/fg/high"; \
+               text { font: "Sans:style=Bold"; size: 10; align: 0.0 1.0; ellipsis: 0.0; } \
+            } \
+            desc { "on"; inherit: "default"; \
+               color_class: "/voidbr/accent/fg"; \
+            } \
+         } \
+         text { "e.text.sub"; nomouse; \
+            scale: 1; \
+            desc { "default"; \
+               rel1.to_x: "icon"; rel1.relative: 1.0 0.5; rel1.offset: 10 2; \
+               rel2.offset: -9 -9; \
+               color_class: "/voidbr/card/fg/dim"; \
+               text { font: "Sans"; size: 9; align: 0.0 0.0; ellipsis: 0.0; } \
+            } \
+            desc { "on"; inherit: "default"; \
+               color_class: "/voidbr/accent/fg"; \
+            } \
+         } \
+         rect { "events"; mouse; \
+            desc { "default"; color: 0 0 0 0; } \
+         } \
+      } \
+      script { public ligado; public sob; \
+         public pinta() { \
+            if (get_int(ligado)) set_state(PART:"bg", get_int(sob) ? "on_hover" : "on", 0.0); \
+            else set_state(PART:"bg", get_int(sob) ? "hover" : "default", 0.0); \
+         } \
+      } \
+      programs { \
+         program { signal: "e,state,on"; source: "e"; \
+            script { set_int(ligado, 1); pinta(); \
+               set_state(PART:"icon", "on", 0.0); set_state(PART:"e.text.label", "on", 0.0); \
+               set_state(PART:"e.text.sub", "on", 0.0); } \
+         } \
+         program { signal: "e,state,off"; source: "e"; \
+            script { set_int(ligado, 0); pinta(); \
+               set_state(PART:"icon", "default", 0.0); set_state(PART:"e.text.label", "default", 0.0); \
+               set_state(PART:"e.text.sub", "default", 0.0); } \
+         } \
+         program { signal: "mouse,in"; source: "events"; \
+            script { set_int(sob, 1); pinta(); } \
+         } \
+         program { signal: "mouse,out"; source: "events"; \
+            script { set_int(sob, 0); pinta(); } \
+         } \
+         program { signal: "mouse,clicked,1"; source: "events"; \
+            action: SIGNAL_EMIT "e,action,click" "e"; \
+         } \
+      } \
+   }
+   CARD("wifi", "ic_wifi.png")
+   CARD("bluetooth", "ic_bluetooth.png")
+   CARD("tiling", "ic_tiling.png")
+   CARD("dnd", "ic_bell_off.png")
+   CARD("shot", "ic_camera.png")
+   CARD("tweaks", "ic_sliders.png")
+#undef CARD
+
+/* -------------------------------------------------------- botões redondos */
+#define BUTTON(_NAME, _IMG, _BG, _FG) \
+   group { name: "e/modules/voidbr/button/"_NAME; \
+      min: 38 38; \
+      parts { \
+         image { "bg"; nomouse; \
+            desc { "default"; \
+               image.normal: "win_round.png"; \
+               image.border: 12 12 12 12; \
+               image.border_scale: 1; \
+               image.border_scale_by: 0.85; \
+               color_class: _BG; \
+            } \
+            desc { "hover"; inherit: "default"; \
+               color_class: "/voidbr/card/hover"; \
+            } \
+         } \
+         image { "icon"; nomouse; \
+            desc { "default"; \
+               rel1.relative: 0.27 0.27; rel2.relative: 0.73 0.73; \
+               image.normal: _IMG; \
+               color_class: _FG; \
+            } \
+         } \
+         rect { "events"; mouse; \
+            desc { "default"; color: 0 0 0 0; } \
+         } \
+      } \
+      programs { \
+         program { signal: "mouse,in"; source: "events"; \
+            action: STATE_SET "hover" 0.0; target: "bg"; \
+         } \
+         program { signal: "mouse,out"; source: "events"; \
+            action: STATE_SET "default" 0.0; target: "bg"; \
+         } \
+         program { signal: "mouse,clicked,1"; source: "events"; \
+            action: SIGNAL_EMIT "e,action,click" "e"; \
+         } \
+      } \
+   }
+   BUTTON("settings", "ic_gear.png", "/voidbr/card/off", "/voidbr/card/fg/high")
+   BUTTON("lock", "ic_lock.png", "/voidbr/card/off", "/voidbr/card/fg/high")
+   BUTTON("power", "ic_power.png", "/voidbr/danger", "/voidbr/accent/fg")
+#undef BUTTON
+
+/* ------------------------------------------------------- volume e brilho */
+   group { name: "e/modules/voidbr/sliders";
+      min: 320 92;
+      parts {
+         image { "bg"; nomouse;
+            desc { "default";
+               image.normal: "win_round.png";
+               image.border: 12 12 12 12;
+               image.border_scale: 1;
+               image.border_scale_by: 1.2;
+               color_class: "/voidbr/panel";
+            }
+         }
+#define ROW(_N, _Y1, _Y2, _LABEL, _ICON) \
+         image { "icon_"_N; nomouse; \
+            scale: 1; \
+            desc { "default"; \
+               rel1.relative: 0.0 _Y1; rel1.offset: 14 0; \
+               rel2.relative: 0.0 _Y2; rel2.offset: 14 -1; \
+               align: 0.0 0.5; \
+               min: 16 16; max: 16 16; \
+               fixed: 1 1; \
+               image.normal: _ICON; \
+               color_class: "/voidbr/card/fg"; \
+            } \
+         } \
+         text { "e.text."_N; nomouse; \
+            scale: 1; \
+            desc { "default"; \
+               rel1.relative: 1.0 _Y1; rel1.offset: -52 0; \
+               rel2.relative: 1.0 _Y2; rel2.offset: -13 -1; \
+               color_class: "/voidbr/card/fg"; \
+               text { font: "Sans"; size: 10; align: 1.0 0.5; } \
+            } \
+         } \
+         part { name: "e.swallow."_N; type: SWALLOW; \
+            scale: 1; \
+            desc { "default"; \
+               rel1.to_x: "icon_"_N; rel1.relative: 1.0 _Y1; rel1.offset: 8 0; \
+               rel2.to_x: "e.text."_N; rel2.relative: 0.0 _Y2; rel2.offset: -6 -1; \
+            } \
+         }
+         ROW("volume", 0.08, 0.5, "Volume", "ic_vol_high.png")
+         ROW("brightness", 0.5, 0.92, "Brilho", "ic_sun.png")
+#undef ROW
+      }
+   }
+
+/* -------------------------------------------------------------- rodapé */
+   group { name: "e/modules/voidbr/footer";
+      min: 320 40;
+      parts {
+         part { name: "e.swallow.power"; type: SWALLOW;
+            scale: 1;
+            desc { "default";
+               rel1.relative: 1.0 0.0;
+               align: 1.0 0.5;
+               min: 38 38; max: 38 38;
+               fixed: 1 1;
+            }
+         }
+         part { name: "e.swallow.lock"; type: SWALLOW;
+            scale: 1;
+            desc { "default";
+               rel1.to_x: "e.swallow.power"; rel1.relative: 0.0 0.0; rel1.offset: -8 0;
+               rel2.to_x: "e.swallow.power"; rel2.relative: 0.0 1.0; rel2.offset: -8 -1;
+               align: 1.0 0.5;
+               min: 38 38; max: 38 38;
+               fixed: 1 1;
+            }
+         }
+         text { "e.text.battery"; nomouse;
+            scale: 1;
+            desc { "default";
+               rel1.offset: 2 0;
+               rel2.to_x: "e.swallow.lock"; rel2.relative: 0.0 1.0; rel2.offset: -8 -1;
+               color_class: "/voidbr/card/fg/dim";
+               text { font: "Sans"; size: 10; align: 0.0 0.5; ellipsis: 0.0; }
+            }
+         }
+      }
+   }
+#undef ICON
+
+/* ------------------------------------------- dock: ícones em quadrados */
+   group { name: "e/modules/ibar/icon";
+      data.item: "raise_on_hilight" "0";
+      parts {
+         spacer { "content";
+            desc { "default"; rel1.offset: 3 3; rel2.offset: -4 -7; }
+            desc { "starting"; inherit: "default";
+               rel1.relative: 0.1 0.1; rel2.relative: 0.9 0.9;
+            }
+         }
+         image { "tile"; nomouse;
+            desc { "default";
+               rel.to: "content";
+               image.normal: "win_round.png";
+               image.border: 12 12 12 12;
+               image.border_scale: 1;
+               image.border_scale_by: 0.9;
+               color_class: "/voidbr/card/off";
+            }
+            desc { "hover"; inherit: "default";
+               color_class: "/voidbr/card/hover";
+            }
+         }
+         part { name: "e.swallow.content"; type: SWALLOW;
+            scale: 1;
+            desc { "default";
+               rel.to: "content";
+               rel1.relative: 0.16 0.16;
+               rel2.relative: 0.84 0.84;
+            }
+            desc { "bounce"; inherit: "default";
+               rel1.relative: 0.16 0.04;
+               rel2.relative: 0.84 0.72;
+            }
+         }
+         part { name: "e.swallow.preview"; type: SWALLOW;
+            desc { "default"; rel.to: "content"; hid; }
+         }
+         image { "indicator"; nomouse;
+            scale: 1;
+            desc { "default";
+               rel1.relative: 0.5 1.0; rel1.offset: 0 -4;
+               rel2.relative: 0.5 1.0; rel2.offset: 0 -2;
+               min: 0 3; max: 0 3;
+               fixed: 1 1;
+               image.normal: "pill.png";
+               image.border: 15 15 15 15;
+               image.border_scale: 1;
+               image.border_scale_by: 0.1;
+               color_class: "/voidbr/accent";
+               hid;
+            }
+            desc { "on"; inherit: "default";
+               min: 14 3; max: 14 3;
+               vis;
+            }
+            desc { "urgent"; inherit: "on";
+               min: 22 3; max: 22 3;
+               color_class: "/voidbr/status/urgent";
+            }
+         }
+         rect { "over"; mouse; repeat;
+            desc { "default"; color: 0 0 0 0; }
+         }
+      }
+      programs {
+         program { signal: "e,state,starting"; source: "e";
+            action: STATE_SET "starting" 0.0; target: "content";
+            transition: SINUSOIDAL 0.3;
+         }
+         program { signal: "e,state,started"; source: "e";
+            action: STATE_SET "default" 0.0; target: "content";
+            transition: SINUSOIDAL 0.2;
+         }
+         program { signal: "e,state,on"; source: "e";
+            action: STATE_SET "on" 0.0; target: "indicator";
+            transition: DECELERATE 0.2;
+         }
+         program { signal: "e,state,off"; source: "e";
+            action: STATE_SET "default" 0.0; target: "indicator";
+            transition: DECELERATE 0.2;
+         }
+         program { signal: "e,state,urgent"; source: "e";
+            action: STATE_SET "urgent" 0.0; target: "indicator";
+         }
+         program { signal: "e,state,not_urgent"; source: "e";
+            action: STATE_SET "on" 0.0; target: "indicator";
+         }
+         program { signal: "e,state,focused"; source: "e";
+            action: STATE_SET "hover" 0.0; target: "tile";
+         }
+         program { signal: "e,state,unfocused"; source: "e";
+            action: STATE_SET "default" 0.0; target: "tile";
+         }
+         program { signal: "mouse,in"; source: "over";
+            action: STATE_SET "hover" 0.0; target: "tile";
+            after: "pula";
+         }
+         program { name: "pula";
+            action: STATE_SET "bounce" 0.0; target: "e.swallow.content";
+            transition: DECELERATE 0.12;
+            after: "volta";
+         }
+         program { name: "volta";
+            action: STATE_SET "default" 0.0; target: "e.swallow.content";
+            transition: ACCELERATE 0.12;
+         }
+         program { signal: "mouse,out"; source: "over";
+            action: STATE_SET "default" 0.0; target: "tile";
+         }
+      }
+   }
