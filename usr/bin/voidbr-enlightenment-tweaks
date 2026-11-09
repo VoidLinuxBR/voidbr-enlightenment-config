@@ -113,7 +113,8 @@ MODULOS = [
     ("connman", "Rede (ConnMan)", "só para quem usa o connman em vez do NetworkManager"),
     ("bluez5", "Bluetooth", "adaptadores e dispositivos no gadget da barra"),
     ("clipboard", "Área de transferência", "histórico do que foi copiado (E 0.28)"),
-    ("tiling", "Mosaico", "janelas lado a lado automaticamente"),
+    ("tiling", "Mosaico", "janelas lado a lado em todas as áreas de trabalho; Super+Shift+setas move, "
+                           "Super+F deixa a janela flutuando, Super+S troca a divisão"),
     ("everything", "Everything", "busca de apps, arquivos e janelas (Super+Espaço)"),
     ("shot", "Captura de tela", "tecla Print"),
     ("music-control", "Controle de música", "player na barra (MPRIS)"),
@@ -137,7 +138,25 @@ ACOES = {
     "desk_flip_by": "Trocar de área de trabalho",
     "syscon": "Menu de desligar",
     "winlist": "Alternar janelas",
+    "move_left": "Mosaico: mover a janela para a esquerda",
+    "move_right": "Mosaico: mover a janela para a direita",
+    "move_up": "Mosaico: mover a janela para cima",
+    "move_down": "Mosaico: mover a janela para baixo",
+    "toggle_floating": "Mosaico: janela flutuante / encaixada",
+    "toggle_split_mode": "Mosaico: trocar divisão (horizontal / vertical)",
 }
+
+# atalhos do mosaico (criados quando o Mosaico é ligado pelo app)
+SUPER, SUPER_SHIFT = 8, 9
+ATALHOS_MOSAICO = [
+    (SUPER_SHIFT, "Left", "move_left"),
+    (SUPER_SHIFT, "Right", "move_right"),
+    (SUPER_SHIFT, "Up", "move_up"),
+    (SUPER_SHIFT, "Down", "move_down"),
+    (SUPER, "f", "toggle_floating"),
+    (SUPER, "s", "toggle_split_mode"),
+]
+MOSAICO_ESPACO = 6  # px entre as janelas
 
 CSS = """
 window { background-color: #1e1f29; }
@@ -390,6 +409,51 @@ def atalhos_super(txt):
     return saida
 
 
+def mosaico_config(e_txt):
+    """module.tiling.cfg com o mosaico ligado em todas as áreas de trabalho."""
+    nx = int(topo_ler(e_txt, "zone_desks_x_count", 4) or 4)
+    ny = int(topo_ler(e_txt, "zone_desks_y_count", 1) or 1)
+    desks = "".join(
+        '        group "Tiling_Config_VDesk" struct {\n'
+        f'            value "x" int: {x};\n'
+        f'            value "y" int: {y};\n'
+        f'            value "zone_num" int: {z};\n'
+        '            value "nb_stacks" int: 1;\n'
+        '        }\n'
+        for z in range(4) for x in range(nx) for y in range(ny))  # até 4 monitores
+    return ('group "Tiling_Config" struct {\n'
+            '    group "vdesks" list {\n' + desks + '    }\n'
+            '    value "tile_dialogs" int: 0;\n'
+            '    value "show_titles" int: 1;\n'
+            '    value "have_floating_mode" int: 1;\n'
+            f'    value "window_padding" int: {MOSAICO_ESPACO};\n'
+            '}\n')
+
+
+def atalhos_adicionar(txt, atalhos):
+    """Acrescenta atalhos (modificador, tecla, ação) que ainda não existem."""
+    b = _bloco(txt, r'^    group "key_bindings" list \{')
+    if not b:
+        return txt
+    s = txt[b[0]:b[1]]
+    existentes = set(re.findall(r'value "modifiers" int: (\d+);\s*\n\s*value "key" string: "([^"]+)";', s))
+    novos = "".join(
+        '        group "E_Config_Binding_Key" struct {\n'
+        '            value "context" int: 9;\n'
+        f'            value "modifiers" int: {mod};\n'
+        f'            value "key" string: "{tecla}";\n'
+        f'            value "action" string: "{acao}";\n'
+        '            value "any_mod" uchar: 0;\n'
+        '        }\n'
+        for mod, tecla, acao in atalhos if (str(mod), tecla) not in existentes)
+    if not novos:
+        return txt
+    i = s.rstrip().rfind("}")
+    i = s.rfind("\n", 0, i) + 1
+    s = s[:i] + novos + s[i:]
+    return txt[:b[0]] + s + txt[b[1]:]
+
+
 # ---------------------------------------------------------------------------
 #   DBus do Enlightenment
 # ---------------------------------------------------------------------------
@@ -633,6 +697,13 @@ def aplicar(v, antes, progresso=lambda _t: None):
         if m in modulos_instalados() or not ligado:
             e = modulos_gravar(e, m, ligado)
     eet_gravar(e_cfg, e)
+
+    if v["modulos"].get("tiling") and not antes["modulos"].get("tiling"):
+        # o módulo sozinho não encaixa nada: liga em todas as áreas e cria os atalhos
+        eet_gravar(os.path.join(e_dir, "module.tiling.cfg"), mosaico_config(e))
+        b_cfg = os.path.join(e_dir, "e_bindings.cfg")
+        if os.path.isfile(b_cfg):
+            eet_gravar(b_cfg, atalhos_adicionar(eet_ler(b_cfg), ATALHOS_MOSAICO))
 
     comp_cfg = os.path.join(e_dir, "e_comp.cfg")
     if os.path.isfile(comp_cfg):
