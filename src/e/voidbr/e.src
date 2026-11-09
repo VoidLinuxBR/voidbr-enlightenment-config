@@ -396,7 +396,7 @@ group "E_Config" struct {
             value "layer" int: 250;
             value "popup" uchar: 0;
             value "orient" int: 5;
-            value "fit_along" uchar: 0;
+            value "fit_along" uchar: 1;
             value "fit_size" uchar: 0;
             value "style" string: "voidbr";
             value "size" int: 44;

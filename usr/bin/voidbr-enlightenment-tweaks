@@ -192,6 +192,9 @@ notebook > header tab:checked label { color: #ffffff; }
 .conteudo button { background: #3b3d52; color: #f1f1f1; border: 1px solid #4b4e66; }
 .conteudo button label { color: #f1f1f1; }
 popover contents, popover arrow { background-color: #2a2b3a; }
+window.dialog button, window.messagedialog button { background: #3b3d52; border: 1px solid #4b4e66; }
+window.dialog button label, window.messagedialog button label { color: #f1f1f1; }
+window.dialog button:hover, window.messagedialog button:hover { background: #4b4e66; }
 """
 
 
@@ -625,22 +628,64 @@ def valores_atuais():
     return valores_de(*caminhos(perfil_atual()))
 
 
-def valores_voidbr():
-    v = valores_de(os.path.join(SYS_E_CFG, PERFIL_VOIDBR, "e.cfg"),
-                   os.path.join(SYS_E_CFG, PERFIL_VOIDBR, "e_comp.cfg"),
-                   os.path.join(SYS_ELM_CFG, PERFIL_VOIDBR, "base.cfg"))
-    for m in ("networkmanager", "clipboard"):  # módulos do E 0.28
-        if m in modulos_instalados():
-            v["modulos"][m] = True
-    return v
+PERFIL_E = "standard"  # perfil padrão do próprio Enlightenment
 
 
-def valores_enlightenment():
-    v = valores_voidbr()
-    v.update({"estilo": "default", "tamanho": 40, "ajustar": True, "esconder": False,
-              "paleta": "default", "icones": "hicolor", "gtk_tema": "", "escala": 100,
-              "papel": ""})
-    return v
+def perfil_gravar(nome):
+    """Perfil que o E carrega no próximo login (~/.e/e/config/profile.cfg)."""
+    os.makedirs(E_CFG, exist_ok=True)
+    with tempfile.NamedTemporaryFile("w", delete=False) as tmp:
+        tmp.write(nome)  # o E grava o nome sem o \0 final
+    try:
+        subprocess.run(["eet", "-i", os.path.join(E_CFG, "profile.cfg"), "config", tmp.name, "0"],
+                       check=True, capture_output=True)
+    finally:
+        os.remove(tmp.name)
+
+
+def restaurar(base, progresso=lambda _t: None):
+    """Troca para uma cópia nova do perfil do sistema "base" (voidbr ou standard).
+
+    Não mexe no perfil atual: copia o perfil do sistema (E e Elementary) para
+    base ou base-alt (o E grava o perfil atual por cima ao trocar, por isso o
+    destino nunca é o perfil em uso) e manda o E trocar para ele.
+    """
+    sys_e = os.path.join(SYS_E_CFG, base)
+    if not os.path.isfile(os.path.join(sys_e, "e.cfg")):
+        raise RuntimeError(f"perfil \"{base}\" não encontrado em {SYS_E_CFG}")
+    sys_elm = os.path.join(SYS_ELM_CFG, base)
+    if not os.path.isfile(os.path.join(sys_elm, "base.cfg")):
+        sys_elm = os.path.join(SYS_ELM_CFG, "standard")
+
+    rodando = e_rodando()
+    # sem o msgbus não dá para trocar de perfil agora: fica para o próximo login
+    troca_agora = rodando and e_dbus("Profile", "Get", tipo="(s)") is not None
+    atual = perfil_atual()
+    destino = base + "-alt" if (rodando and atual == base) else base
+
+    progresso("📋 Copiando o perfil padrão…")
+    e_dir = os.path.join(E_CFG, destino)
+    elm_dir = os.path.join(ELM_CFG, destino)
+    for origem, alvo in ((sys_e, e_dir), (sys_elm, elm_dir)):
+        shutil.rmtree(alvo, ignore_errors=True)
+        shutil.copytree(origem, alvo)
+        for raiz, _dirs, arquivos in os.walk(alvo):
+            os.chmod(raiz, 0o755)
+            for f in arquivos:
+                os.chmod(os.path.join(raiz, f), 0o644)
+
+    # msgbus ligado em qualquer perfil: é por ele que o tweaks troca de perfil
+    # (o "standard" do E vem com ele desligado e o caminho de volta ficaria fechado)
+    e_cfg = os.path.join(e_dir, "e.cfg")
+    eet_gravar(e_cfg, modulos_gravar(eet_ler(e_cfg), "msgbus", True))
+    os.chmod(e_cfg, 0o644)
+
+    if troca_agora:
+        progresso("🔄 Reiniciando o Enlightenment…")
+        e_dbus("Profile", "Set", GLib.Variant("(s)", (destino,)), timeout=5000)
+    else:
+        perfil_gravar(destino)
+    return destino, troca_agora
 
 
 # ---------------------------------------------------------------------------
@@ -842,12 +887,17 @@ class JanelaTweaks(Gtk.ApplicationWindow):
         caixa.append(st)
 
         linha = Gtk.Box(spacing=8, halign=Gtk.Align.END)
-        b_e = Gtk.Button(label="🔵 Padrão Enlightenment")
+        b_e = Gtk.Button(label="🔵 Padrão Enlightenment",
+                         tooltip_text="Volta ao Enlightenment original: barra, tema e cores do "
+                                      "próprio E, sem nada do VoidBR.")
         b_e.add_css_class("botao-azul")
-        b_e.connect("clicked", lambda *_: self.mostrar(valores_enlightenment(), manter_atalhos=True))
-        b_voidbr = Gtk.Button(label="↩️ Padrão VoidBR")
+        b_e.connect("clicked", lambda *_: self.confirmar_restaurar(PERFIL_E))
+        b_voidbr = Gtk.Button(label="↩️ Padrão VoidBR",
+                              tooltip_text="Volta ao visual VoidBR completo: barra e dock em "
+                                           "ilha, central de controle, cores Tokyo Night.")
         b_voidbr.add_css_class("botao-laranja")
-        b_voidbr.connect("clicked", lambda *_: self.mostrar(valores_voidbr(), manter_atalhos=True))
+        b_voidbr.connect("clicked", lambda *_: self.confirmar_restaurar(PERFIL_VOIDBR))
+        self.b_restaurar = (b_e, b_voidbr)
         self.b_aplicar = Gtk.Button(label="✅ Aplicar")
         self.b_aplicar.add_css_class("botao-verde")
         self.b_aplicar.connect("clicked", self.ao_clicar_aplicar)
@@ -1088,6 +1138,52 @@ class JanelaTweaks(Gtk.ApplicationWindow):
                 GLib.idle_add(self._fim, [], str(erro))
         threading.Thread(target=tarefa, daemon=True).start()
 
+    def confirmar_restaurar(self, base):
+        nome = "VoidBR" if base == PERFIL_VOIDBR else "Enlightenment"
+        dlg = Gtk.AlertDialog(
+            message=f"Restaurar o padrão {nome}?",
+            detail="O perfil volta inteiro ao padrão (barra, módulos, atalhos, tema, cores e "
+                   "papel de parede). O perfil atual fica guardado e pode ser escolhido de novo "
+                   "em Configurações → Perfis. O Enlightenment reinicia; as janelas continuam "
+                   "abertas.",
+            buttons=["Cancelar", "Restaurar"], cancel_button=0, default_button=1)
+        dlg.choose(self, None, self._resposta_restaurar, base)
+
+    def _resposta_restaurar(self, dlg, res, base):
+        try:
+            if dlg.choose_finish(res) != 1:
+                return
+        except GLib.Error:
+            return
+        for b in (self.b_aplicar, *self.b_restaurar):
+            b.set_sensitive(False)
+
+        def tarefa():
+            try:
+                destino, agora = restaurar(base, lambda t: GLib.idle_add(self.status, t))
+                GLib.idle_add(self._fim_restaurar, destino, agora, None)
+            except Exception as erro:  # noqa: BLE001 - mostra qualquer falha ao usuário
+                GLib.idle_add(self._fim_restaurar, None, False, str(erro))
+        threading.Thread(target=tarefa, daemon=True).start()
+
+    def _fim_restaurar(self, destino, agora, erro):
+        for b in (self.b_aplicar, *self.b_restaurar):
+            b.set_sensitive(True)
+        if erro:
+            self.status(f"⚠️ {erro}")
+        elif agora:
+            self.status(f"✅ Perfil \"{destino}\" restaurado. O Enlightenment está reiniciando.")
+            GLib.timeout_add_seconds(6, self._recarregar_tudo)
+        else:
+            self.status(f"✅ Perfil \"{destino}\" restaurado. Saia da sessão e entre de novo "
+                        "para carregar (o módulo msgbus, que troca o perfil na hora, está "
+                        "desligado).")
+        return False
+
+    def _recarregar_tudo(self):
+        self.recarregar()
+        return False
+
     def _fim(self, feito, erro):
         self.b_aplicar.set_sensitive(True)
         if erro:
@@ -1203,9 +1299,9 @@ def main():
         print("eet não encontrado (pacote efl).", file=sys.stderr)
         return 1
     if "--padrao-voidbr" in args or "--padrao-enlightenment" in args:
-        novo = valores_voidbr() if "--padrao-voidbr" in args else valores_enlightenment()
-        feito = aplicar(novo, valores_atuais(), print)
-        print("Aplicado: " + (", ".join(feito) if feito else "nada mudou"))
+        destino, agora = restaurar(PERFIL_VOIDBR if "--padrao-voidbr" in args else PERFIL_E, print)
+        print(f"Perfil restaurado: {destino}" +
+              ("" if agora else " (vale no próximo login: o msgbus está desligado)"))
         return 0
     aba = None
     if "--aba" in args:
