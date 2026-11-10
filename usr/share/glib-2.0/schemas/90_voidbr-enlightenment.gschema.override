@@ -1,0 +1,4 @@
+# Edição Enlightenment do VoidBR: apps que seguem o portal (Firefox, GTK4,
+# libadwaita) começam no escuro, combinando com o tema Tokyo Night.
+[org.gnome.desktop.interface]
+color-scheme='prefer-dark'

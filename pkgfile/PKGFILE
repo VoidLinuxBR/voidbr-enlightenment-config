@@ -58,6 +58,12 @@ post_install() {
     gtk-update-icon-cache -q -t -f /usr/share/icons/hicolor >/dev/null 2>&1 || true
   fi
 
+  # Padrão "prefer-dark" (90_voidbr-enlightenment.gschema.override): só vale
+  # depois de recompilar os schemas
+  if command -v glib-compile-schemas >/dev/null 2>&1; then
+    glib-compile-schemas /usr/share/glib-2.0/schemas >/dev/null 2>&1 || true
+  fi
+
   # Build da ISO e instalador: o skel vai para o usuário criado depois
   if [ -n "${MKISO_BUILD:-}" ] || [ -n "${VOIDBR_INSTALLER:-}" ]; then
     return 0
