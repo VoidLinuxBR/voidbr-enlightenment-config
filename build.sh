@@ -83,7 +83,9 @@ eet_raw "${destdir}/etc/skel/.elementary/config/profile.cfg" "${profile}"
 
 # 4. wallpaper (o E só aceita .edj: empacota o papel de parede do voidbr-wallpapers)
 #    pode ser trocado com: WALLPAPER=/caminho/imagem.png bash build.sh <destdir>
-wallpaper="${WALLPAPER:-/usr/share/backgrounds/voidbr/voidbr-wallpaper.avif}"
+wallpaper="${WALLPAPER:-/usr/share/backgrounds/voidbr/Night-Desert-by-Daniel-Olah.avif}"
+#    marca d'água do VoidBR por cima (LOGO= vazio desliga)
+logo="${LOGO-/usr/share/backgrounds/voidbr/voidbr.png}"
 
 # be32 <arquivo> <offset> - lê um inteiro big-endian de 4 bytes
 be32() { echo $((16#$(od -An -tx1 -j"$2" -N4 "$1" | tr -d ' \n'))); }
@@ -105,8 +107,14 @@ if [[ -f "$wallpaper" ]]; then
 	read -r w h < <(img_size "$wallpaper")
 	msg "Wallpaper ${wallpaper##*/} (${w}x${h})"
 	install -d "${destdir}/usr/share/voidbr-enlightenment/backgrounds"
+	logo_opts=()
+	if [[ -n "$logo" && -f "$logo" ]]; then
+		logo_opts=(-DLOGO_FILE="\"${logo##*/}\"" -id "$(dirname "$logo")")
+	elif [[ -n "$logo" ]]; then
+		warn "${logo} não encontrado - wallpaper sem a marca d'água"
+	fi
 	edje_cc -DIMG_FILE="\"${wallpaper##*/}\"" -DIMG_W="${w}.0" -DIMG_H="${h}.0" \
-		-id "$(dirname "$wallpaper")" \
+		-id "$(dirname "$wallpaper")" "${logo_opts[@]}" \
 		"${srcdir}/wallpaper/voidbr.edc" \
 		"${destdir}/usr/share/voidbr-enlightenment/backgrounds/voidbr.edj" ||
 		die "falha ao compilar o wallpaper"
