@@ -437,6 +437,11 @@
    CARD("dnd", "ic_bell_off.png")
    CARD("shot", "ic_camera.png")
    CARD("tweaks", "ic_sliders.png")
+   CARD("network", "ic_ethernet.png")
+   CARD("mic", "ic_mic.png")
+   CARD("caffeine", "ic_coffee.png")
+   CARD("night", "ic_moon.png")
+   CARD("airplane", "ic_airplane.png")
 #undef CARD
 
 /* -------------------------------------------------------- botões redondos */

@@ -136,6 +136,10 @@ images {
    image: "ic_bolt.png" COMP;
    image: "ic_camera.png" COMP;
    image: "ic_gear.png" COMP;
+   image: "ic_mic.png" COMP;
+   image: "ic_coffee.png" COMP;
+   image: "ic_airplane.png" COMP;
+   image: "ic_ethernet.png" COMP;
    image: "ic_lock.png" COMP;
    image: "ic_moon.png" COMP;
    image: "ic_power.png" COMP;
