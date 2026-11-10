@@ -1307,7 +1307,7 @@ class JanelaTweaks(Gtk.ApplicationWindow):
         sobre.set_website("https://voidbr.org")
         sobre.set_website_label("voidbr.org")
         sobre.set_license_type(Gtk.License.BSD)
-        sobre.set_logo_icon_name("preferences-desktop-theme")
+        sobre.set_logo_icon_name("org.voidbr.EnlightenmentTweaks")
         sobre.present()
 
 
