@@ -1,0 +1,147 @@
+/* Overlay de tela do compositor (protetor de tela, suspensão, desligar).
+ *
+ * Igual ao do tema padrão do EFL 1.29, mas sem o data "restarted": com ele
+ * o E cobre a tela de preto depois de reiniciar (troca de perfil) e só tira
+ * a cobertura com uma animação; em VM o relógio de animação pode não andar
+ * e a tela fica preta para sempre. Sem ele, a tela aparece direto.
+ */
+group { name: "e/comp/screen/overlay/default";
+   alias: "e/comp/screen/overlay/noeffects"; // legacy
+   images.image: "screen_circular_shadow.png" COMP;
+   parts {
+      part { name: "clip"; type: RECT; mouse_events: 0;
+         description { state: "default" 0.0;
+         }
+      }
+      part { name: "shadow"; mouse_events: 0;
+         clip_to: "clip";
+         description { state: "default" 0.0;
+            rel1.relative: -1.0 -1.0;
+            rel2.relative: 2.0 2.0;
+            image.normal: "screen_circular_shadow.png";
+            fill.smooth: 0;
+            color: 255 255 255 0; // no cc
+            visible: 0;
+         }
+         description { state: "visible" 0.0;
+            inherit;
+            rel1.relative: 0.0 0.0;
+            rel2.relative: 1.0 1.0;
+            color: 255 255 255 255; // no cc
+            visible: 1;
+         }
+      }
+      part { name: "blanker"; type: RECT; mouse_events: 0;
+         description { state: "default" 0.0;
+            color: 0 0 0 0; // no cc
+            visible: 0;
+         }
+         description { state: "visible" 0.0;
+            inherit;
+            color: 0 0 0 255; // no cc
+            visible: 1;
+         }
+      }
+      part { name: "suspender"; type: RECT; mouse_events: 0;
+         description { state: "default" 0.0;
+            color: 0 0 0 0; // no cc
+            visible: 0;
+         }
+         description { state: "visible" 0.0;
+            inherit;
+            color: 0 0 0 255; // no cc
+            visible: 1;
+         }
+      }
+   }
+   programs {
+         program { signal: "e,state,screensaver,on"; source: "e";
+            action: STATE_SET "visible" 0.0;
+            transition: ACCELERATE 3.0 USE_DURATION_FACTOR 1 CURRENT;
+            target: "blanker";
+            sequence {
+               action: SIGNAL_EMIT "e,state,screensaver,active" "e";
+            }
+         }
+         program { signal: "e,state,screensaver,on"; source: "e";
+            action: STATE_SET "visible" 0.0;
+            transition: DECELERATE 3.0 USE_DURATION_FACTOR 1 CURRENT;
+            target: "shadow";
+         }
+         program { signal: "e,state,screensaver,off"; source: "e";
+            action: STATE_SET "default" 0.0;
+            transition: ACCELERATE 0.5 USE_DURATION_FACTOR 1 CURRENT;
+            target: "blanker";
+         }
+         program { signal: "e,state,screensaver,off"; source: "e";
+            action: STATE_SET "default" 0.0;
+            transition: ACCELERATE 0.5 USE_DURATION_FACTOR 1 CURRENT;
+            target: "shadow";
+         }
+         program { signal: "e,state,sys,suspend"; source: "e";
+            action: STATE_SET "visible" 0.0;
+            transition: ACCELERATE 0.5 USE_DURATION_FACTOR 1 CURRENT;
+            target: "suspender";
+            sequence {
+               action: SIGNAL_EMIT "e,state,sys,suspend,done" "e";
+            }
+         }
+         program { signal: "e,state,sys,hibernate"; source: "e";
+            action: STATE_SET "visible" 0.0;
+            transition: ACCELERATE 0.5 USE_DURATION_FACTOR 1 CURRENT;
+            target: "suspender";
+            sequence {
+               action: SIGNAL_EMIT "e,state,sys,hibernate,done" "e";
+            }
+         }
+         program { signal: "e,state,sys,resume"; source: "e";
+            action: STATE_SET "default" 0.0;
+            transition: DECELERATE 0.5 USE_DURATION_FACTOR 1 CURRENT;
+            target: "suspender";
+         }
+         program { signal: "e,state,sys,reboot"; source: "e";
+            action: STATE_SET "visible" 0.0;
+            transition: ACCELERATE 0.5 USE_DURATION_FACTOR 1 CURRENT;
+            target: "suspender";
+            sequence {
+                action: SIGNAL_EMIT "e,state,sys,reboot,done" "e";
+            }
+         }
+         program { signal: "e,state,sys,halt"; source: "e";
+            action: STATE_SET "visible" 0.0;
+            transition: ACCELERATE 0.5 USE_DURATION_FACTOR 1 CURRENT;
+            target: "suspender";
+            sequence {
+                action: SIGNAL_EMIT "e,state,sys,halt,done" "e";
+            }
+         }
+         program { signal: "e,state,sys,logout"; source: "e";
+            action: STATE_SET "visible" 0.0;
+            transition: ACCELERATE 0.5 USE_DURATION_FACTOR 1 CURRENT;
+            target: "suspender";
+            sequence {
+                action: SIGNAL_EMIT "e,state,sys,logout,done" "e";
+            }
+         }
+         program { signal: "e,state,sys,restart"; source: "e";
+            action: STATE_SET "visible" 0.0;
+            transition: ACCELERATE 0.5 USE_DURATION_FACTOR 1 CURRENT;
+            target: "suspender";
+            sequence {
+                action: SIGNAL_EMIT "e,state,sys,restart,done" "e";
+            }
+         }
+         program { signal: "e,state,sys,restarted"; source: "e";
+            action: STATE_SET "visible" 0.0;
+            target: "suspender";
+         }
+         program { signal: "e,state,sys,restarted,show"; source: "e";
+            action: STATE_SET "default" 0.0;
+            transition: ACCELERATE 0.5 USE_DURATION_FACTOR 1 CURRENT;
+            target: "suspender";
+            sequence {
+              action: SIGNAL_EMIT "e,state,sys,restarted,show,done" "e";
+            }
+         }
+   }
+}

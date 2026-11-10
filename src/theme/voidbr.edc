@@ -10,6 +10,7 @@
  *                     menus e quadros do compositor
  *   notification.edc  notificações em cartão
  *   desklock.edc      tela de bloqueio (relógio grande e cartão de senha)
+ *   comp.edc          overlay da tela sem a cobertura preta do reinício
  *   central.edc       módulo voidbr (pílula de status, central de controle,
  *                     título da janela) e ícones do dock
  *
@@ -274,4 +275,5 @@ collections {
 #include "notification.edc"
 #include "desklock.edc"
 #include "central.edc"
+#include "comp.edc"
 }
