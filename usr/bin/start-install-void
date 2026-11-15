@@ -24,8 +24,8 @@ mkdir -p "$desktop_dir"
 
 dest="$desktop_dir/$cfile"
 cp -f "$src" "$dest"
-chmod +x "$dest"
-# marca o atalho como confiável nos gerenciadores de arquivos baseados em GIO
-command -v gio >/dev/null 2>&1 && gio set "$dest" metadata::trusted true 2>/dev/null
+# sem +x: o fileman do Enlightenment tenta executar o próprio .desktop quando
+# ele é executável e o tipo não foi detectado; sem +x ele abre pelo Exec=
+chmod -x "$dest"
 
 exit 0
