@@ -1,7 +1,11 @@
 #!/bin/sh
-# start-install-void - executado no login (via /etc/xdg/autostart)
+# start-install-void - executado no login do Enlightenment
+#  (pela lista de início ~/.e/e/applications/startup/.order; o E não roda
+#   sozinho o /etc/xdg/autostart)
 #  - cria/atualiza as pastas do usuário (xdg-user-dirs)
 #  - no live, coloca o atalho do instalador na Área de Trabalho
+#  - deixa o atalho sem +x: executável, o fileman do Enlightenment tenta
+#    rodar o próprio .desktop em vez de abrir pelo Exec=
 
 # LED do teclado
 if [ -e "$HOME/.config/ledkeyboard" ] && command -v change-keyboard-led >/dev/null 2>&1; then
@@ -11,21 +15,19 @@ fi
 # Pastas do usuário (Área de trabalho, Documentos, ...)
 command -v xdg-user-dirs-update >/dev/null 2>&1 && xdg-user-dirs-update
 
-# Só no live
-[ -e /run/initramfs/live/LiveOS/squashfs.img ] || exit 0
-
 cfile='void-install.desktop'
-src="/usr/share/applications/$cfile"
-[ -f "$src" ] || exit 0
-
 desktop_dir=$(xdg-user-dir DESKTOP 2>/dev/null)
 [ -n "$desktop_dir" ] && [ "$desktop_dir" != "$HOME" ] || desktop_dir="$HOME/Desktop"
-mkdir -p "$desktop_dir"
-
 dest="$desktop_dir/$cfile"
-cp -f "$src" "$dest"
-# sem +x: o fileman do Enlightenment tenta executar o próprio .desktop quando
-# ele é executável e o tipo não foi detectado; sem +x ele abre pelo Exec=
-chmod -x "$dest"
+
+# Só no live: (re)coloca o atalho
+src="/usr/share/applications/$cfile"
+if [ -e /run/initramfs/live/LiveOS/squashfs.img ] && [ -f "$src" ]; then
+	mkdir -p "$desktop_dir"
+	cp -f "$src" "$dest"
+fi
+
+# o atalho também vem pelo /etc/skel do voidbr-base-config, já com +x
+[ -f "$dest" ] && chmod -x "$dest"
 
 exit 0
