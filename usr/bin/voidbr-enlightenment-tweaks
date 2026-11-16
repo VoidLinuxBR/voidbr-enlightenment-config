@@ -3,7 +3,7 @@
 #
 #   voidbr-enlightenment-tweaks
 #   Created: dom 08 nov 2026 15:30:00 -04
-#   Altered: dom 08 nov 2026 15:30:00 -04
+#   Altered: dom 15 nov 2026 23:08:18 -04
 #
 #   Copyright (c) 2026, Vilmar Catafesta <vcatafesta@gmail.com>
 #   Copyright (c) 2026, VoidLinuxBR Team
@@ -16,6 +16,10 @@
 #     posição, tamanho, esconder sozinha), Aparência (paleta, ícones, tema GTK,
 #     escala), Papel de parede (voidbr-wallpapers ou imagem própria) e Módulos
 #     e atalhos. Botões Aplicar, Padrão VoidBR e Padrão Enlightenment.
+#   - v1.1 (2026-11-15): com a janela aberta, o que muda fora do app (ex.: o
+#     Mosaico ligado ou desligado pelo cartão da central) aparece sozinho: o
+#     app vigia o e.cfg do perfil e relê a configuração quando o E grava,
+#     se não houver mudança pendente na tela. Antes ficava o valor antigo.
 #
 #   Redistribution and use in source and binary forms, with or without
 #   modification, are permitted provided that the following conditions
@@ -75,7 +79,7 @@ import threading
 gi.require_version("Gtk", "4.0")
 from gi.repository import Gtk, GLib, Gio
 
-VERSAO = "1.0"
+VERSAO = "1.1"
 APP_ID = "org.voidbr.EnlightenmentTweaks"
 
 HOME = os.path.expanduser("~")
@@ -944,6 +948,9 @@ class JanelaTweaks(Gtk.ApplicationWindow):
             linha.append(b)
         caixa.append(linha)
 
+        self._vigia = None
+        self._vigia_perfil = None
+        self._vigia_id = 0
         self.recarregar()
         if aba_inicial in self.indice_aba:
             self.abas.set_current_page(self.indice_aba[aba_inicial])
@@ -1151,9 +1158,59 @@ class JanelaTweaks(Gtk.ApplicationWindow):
         v["modulos"].update({m: sw.get_active() for m, sw in self.w_mod.items()})
         return v
 
+    # ----- mudanças feitas fora do app -----
+
+    def _vigiar(self):
+        """Vigia a pasta do perfil atual: o E grava o e.cfg quando um cartão
+        da central (ou as Configurações do E) muda algo."""
+        perfil = perfil_atual()
+        if perfil == self._vigia_perfil:
+            return
+        if self._vigia:
+            self._vigia.cancel()
+        self._vigia = None
+        self._vigia_perfil = perfil
+        try:
+            self._vigia = Gio.File.new_for_path(os.path.join(E_CFG, perfil)).monitor_directory(
+                Gio.FileMonitorFlags.WATCH_MOVES, None)
+        except GLib.Error:
+            return
+        self._vigia.connect("changed", self._ao_mudar_cfg)
+
+    def _ao_mudar_cfg(self, _vigia, arq, outro, _evento):
+        nomes = {f.get_basename() for f in (arq, outro) if f}
+        if not nomes & {"e.cfg", "e_bindings.cfg"}:
+            return
+        # o E grava num .tmp e renomeia: espera assentar
+        if self._vigia_id:
+            GLib.source_remove(self._vigia_id)
+        self._vigia_id = GLib.timeout_add(700, self._reler_de_fora)
+
+    def _pendente(self):
+        """Há mudança na tela ainda não aplicada?"""
+        v = self.coletar()
+        return any(v.get(k) != self.antes.get(k) for k in NOMES)
+
+    def _reler_de_fora(self):
+        self._vigia_id = 0
+        # aplicando, ou com mudança pendente na tela: não desfaz nada
+        if not self.b_aplicar.get_sensitive():
+            return False
+        try:
+            if self._pendente():
+                return False
+            novo = valores_atuais()
+        except Exception:  # arquivo sendo regravado: fica para a próxima gravação
+            return False
+        if any(novo.get(k) != self.antes.get(k) for k in NOMES):
+            self.antes = novo
+            self.mostrar(novo)
+        return False
+
     def recarregar(self):
         self.antes = valores_atuais()
         self.mostrar(self.antes)
+        self._vigiar()
         rodando = e_rodando()
         self.status(f"✔ Perfil atual: {perfil_atual()}" +
                     ("" if rodando else " — o Enlightenment não está rodando: as mudanças valem "
@@ -1236,6 +1293,7 @@ class JanelaTweaks(Gtk.ApplicationWindow):
     def _recarregar_depois(self):
         txt = self.label_status.get_text()
         self.antes = valores_atuais()
+        self._vigiar()  # o Aplicar troca de perfil (voidbr <-> voidbr-alt)
         self.status(txt)
         return False
 
