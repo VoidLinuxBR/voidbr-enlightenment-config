@@ -1,0 +1,7 @@
+group "Emix_Config" struct {
+    value "backend" string: "PULSEAUDIO";
+    value "notify" int: 0;
+    value "mute" int: 0;
+    value "no_autostart" int: 1;
+    value "save" int: 1;
+}
