@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=PipeWire
+Comment=Starts PipeWire (and, through it, WirePlumber and pipewire-pulse)
+Comment[pt_BR]=Inicia o PipeWire (e, por ele, o WirePlumber e o pipewire-pulse)
+Exec=voidbr-pipewire-start
+Terminal=false
+NoDisplay=true
