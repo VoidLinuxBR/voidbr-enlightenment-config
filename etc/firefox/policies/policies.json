@@ -1,0 +1,46 @@
+{
+  "policies": {
+    "Homepage": {
+      "URL": "https://voidbr.org",
+      "Locked": false,
+      "StartPage": "homepage"
+    },
+    "DisableFirefoxStudies": true,
+    "DisableTelemetry": true,
+    "DontCheckDefaultBrowser": true,
+    "FirefoxHome": {
+      "SponsoredStories": false,
+      "SponsoredTopSites": false,
+      "Stories": false
+    },
+    "FirefoxSuggest": {
+      "WebSuggestions": false,
+      "SponsoredSuggestions": false,
+      "ImproveSuggest": false
+    },
+    "UserMessaging": {
+      "ExtensionRecommendations": false,
+      "FeatureRecommendations": false,
+      "MoreFromMozilla": false,
+      "SkipOnboarding": true,
+      "Locked": false
+    },
+    "GenerativeAI": {
+      "Enabled": false,
+      "Chatbot": false,
+      "LinkPreviews": false,
+      "TabGroups": false,
+      "Locked": false
+    },
+    "AIControls": {
+      "Default": { "Value": "blocked", "Locked": false },
+      "Translations": { "Value": "available", "Locked": false },
+      "PDFAltText": { "Value": "available", "Locked": false },
+      "SmartTabGroups": { "Value": "blocked", "Locked": false },
+      "LinkPreviewKeyPoints": { "Value": "blocked", "Locked": false },
+      "SidebarChatbot": { "Value": "blocked", "Locked": false },
+      "SmartWindow": { "Value": "blocked", "Locked": false }
+    },
+    "VisualSearchEnabled": false
+  }
+}
