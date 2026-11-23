@@ -3,7 +3,7 @@
 #
 #   voidbr-enlightenment-tweaks
 #   Created: dom 08 nov 2026 15:30:00 -04
-#   Altered: seg 23 nov 2026 01:55:22 -04
+#   Altered: seg 23 nov 2026 02:07:59 -04
 #
 #   Copyright (c) 2026, Vilmar Catafesta <vcatafesta@gmail.com>
 #   Copyright (c) 2026, VoidLinuxBR Team
@@ -25,6 +25,8 @@
 #     e troca pelo pkexec voidbr-sddm-theme; sem o pacote, a aba não aparece.
 #   - v1.3 (2026-11-23): Tela de login vai no mesmo ✅ Aplicar do app (antes a aba
 #     tinha um botão próprio no fim da página e o Aplicar dizia "Nada mudou").
+#   - v1.4 (2026-11-23): Tela de login aparece também com o voidbr-sddm-themes antigo (com o botão
+#     próprio da aba); antes um parâmetro novo derrubava a aba sem aviso.
 #
 #   Redistribution and use in source and binary forms, with or without
 #   modification, are permitted provided that the following conditions
@@ -84,7 +86,7 @@ import threading
 gi.require_version("Gtk", "4.0")
 from gi.repository import Gtk, GLib, Gio
 
-VERSAO = "1.3"
+VERSAO = "1.4"
 APP_ID = "org.voidbr.EnlightenmentTweaks"
 
 HOME = os.path.expanduser("~")
@@ -932,13 +934,19 @@ class JanelaTweaks(Gtk.ApplicationWindow):
             sys.path.insert(0, "/usr/lib/voidbr")
             import voidbr_sddm_aba
             rolagem = Gtk.ScrolledWindow(hscrollbar_policy=Gtk.PolicyType.NEVER)
-            self.aba_login = voidbr_sddm_aba.criar_aba(self, com_botao=False)
+            try:
+                self.aba_login = voidbr_sddm_aba.criar_aba(self, com_botao=False)
+            except TypeError:  # voidbr-sddm-themes antigo: a aba vem com o botão próprio
+                self.aba_login = voidbr_sddm_aba.criar_aba(self)
             rolagem.set_child(self.aba_login)
             self.indice_aba["login"] = self.abas.append_page(
                 rolagem, Gtk.Label(label="🔐 Tela de login"))
             self.abas.set_scrollable(True)
-        except Exception:  # noqa: BLE001 - sem o pacote (ou erro nele): segue sem a aba
-            pass
+        except ImportError:
+            pass  # sem o voidbr-sddm-themes: o app segue sem a aba
+        except Exception as erro:  # noqa: BLE001 - erro na aba não derruba o app
+            self.aba_login = None
+            print(f"aba Tela de login desligada: {erro}", file=sys.stderr)
         caixa.append(self.abas)
 
         st = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
@@ -1242,7 +1250,8 @@ class JanelaTweaks(Gtk.ApplicationWindow):
 
     def ao_clicar_aplicar(self, *_):
         # a tela de login (aba do voidbr-sddm-themes) vai junto no mesmo Aplicar
-        if self.aba_login is not None and self.aba_login.pendente():
+        pendente = getattr(self.aba_login, "pendente", None)  # aba antiga não tem
+        if pendente is not None and pendente():
             self.aba_login.aplicar()
         v = self.coletar()
         self.b_aplicar.set_sensitive(False)
@@ -1304,7 +1313,7 @@ class JanelaTweaks(Gtk.ApplicationWindow):
         if erro:
             self.status(f"⚠️ {erro}")
         elif not feito:
-            if not (self.aba_login and self.aba_login.ocupado):
+            if not getattr(self.aba_login, "ocupado", False):
                 self.status("ℹ️ Nada mudou.")
         else:
             self.status("✅ Aplicado: " + ", ".join(feito) + ". O Enlightenment reinicia para "
