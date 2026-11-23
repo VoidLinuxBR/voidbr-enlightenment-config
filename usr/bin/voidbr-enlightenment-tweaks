@@ -3,7 +3,7 @@
 #
 #   voidbr-enlightenment-tweaks
 #   Created: dom 08 nov 2026 15:30:00 -04
-#   Altered: dom 15 nov 2026 23:08:18 -04
+#   Altered: seg 23 nov 2026 01:25:31 -04
 #
 #   Copyright (c) 2026, Vilmar Catafesta <vcatafesta@gmail.com>
 #   Copyright (c) 2026, VoidLinuxBR Team
@@ -20,6 +20,9 @@
 #     Mosaico ligado ou desligado pelo cartão da central) aparece sozinho: o
 #     app vigia o e.cfg do perfil e relê a configuração quando o E grava,
 #     se não houver mudança pendente na tela. Antes ficava o valor antigo.
+#   - v1.2 (2026-11-23): Aba "🔐 Tela de login": tema do SDDM com prévia, Testar
+#     e fundo próprio. Vem do voidbr-sddm-themes (/usr/lib/voidbr/voidbr_sddm_aba.py)
+#     e troca pelo pkexec voidbr-sddm-theme; sem o pacote, a aba não aparece.
 #
 #   Redistribution and use in source and binary forms, with or without
 #   modification, are permitted provided that the following conditions
@@ -79,7 +82,7 @@ import threading
 gi.require_version("Gtk", "4.0")
 from gi.repository import Gtk, GLib, Gio
 
-VERSAO = "1.1"
+VERSAO = "1.2"
 APP_ID = "org.voidbr.EnlightenmentTweaks"
 
 HOME = os.path.expanduser("~")
@@ -921,6 +924,17 @@ class JanelaTweaks(Gtk.ApplicationWindow):
             rolagem = Gtk.ScrolledWindow(hscrollbar_policy=Gtk.PolicyType.NEVER)
             rolagem.set_child(fabrica())
             self.indice_aba[chave] = self.abas.append_page(rolagem, Gtk.Label(label=rotulo))
+        # aba "Tela de login": vem do voidbr-sddm-themes (só aparece se ele estiver instalado)
+        try:
+            sys.path.insert(0, "/usr/lib/voidbr")
+            import voidbr_sddm_aba
+            rolagem = Gtk.ScrolledWindow(hscrollbar_policy=Gtk.PolicyType.NEVER)
+            rolagem.set_child(voidbr_sddm_aba.criar_aba(self))
+            self.indice_aba["login"] = self.abas.append_page(
+                rolagem, Gtk.Label(label="🔐 Tela de login"))
+            self.abas.set_scrollable(True)
+        except Exception:  # noqa: BLE001 - sem o pacote (ou erro nele): segue sem a aba
+            pass
         caixa.append(self.abas)
 
         st = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
@@ -1387,7 +1401,7 @@ def main():
         print(f"voidbr-enlightenment-tweaks {VERSAO}")
         return 0
     if "--help" in args or "-h" in args:
-        print("Uso: voidbr-enlightenment-tweaks [--aba barra|aparencia|papel|modulos]\n"
+        print("Uso: voidbr-enlightenment-tweaks [--aba barra|aparencia|papel|modulos|login]\n"
               "                                   [--padrao-voidbr | --padrao-enlightenment]")
         return 0
     if not shutil.which("eet"):
